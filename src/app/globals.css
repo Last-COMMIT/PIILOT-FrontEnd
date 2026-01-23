@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-noto-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -44,6 +45,37 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* 커스텀 레이아웃 크기 */
+  --sidebar-width: 280px;
+
+  /* 커스텀 색상 - 메인 (민트) */
+  --color-main-bg: #22d3ee;
+  --color-main-text: #22d3ee;
+
+  /* 커스텀 색상 - 사이드바 */
+  --color-sidebar-bg: #0e172a;
+  --color-sidebar-border: #1e293b;
+  --color-sidebar-text: #94a3b8;
+  --color-sidebar-hover-bg: #1e293b;
+  --color-sidebar-hover-text: #ffffff;
+
+  /* 커스텀 색상 - 배경 (다크) */
+  --color-bg-main: #020616;
+
+  /* 커스텀 색상 - 컨텐츠 배경 (투명도 포함) */
+  --color-mint-bg: rgb(6 182 212 / 0.15); /* 민트 */
+  --color-purple-bg: rgb(192 132 252 / 0.15); /* 퍼플 */
+  --color-green-bg: rgb(74 222 128 / 0.15); /* 그린 */
+  --color-coral-bg: rgb(248 113 113 / 0.15); /* 코랄 */
+  --color-card-bg: rgb(15 23 42 / 0.7); /* 카드 배경 */
+
+  /* 커스텀 색상 - 컨텐츠 테두리 */
+  --color-mint-border: #04465b; /* 민트 테두리 */
+  --color-purple-border: #3f226a; /* 퍼플 테두리 */
+  --color-green-border: #0d4e31; /* 그린 테두리 */
+  --color-coral-border: #66202a; /* 코랄 테두리 */
+  --color-content-border: #1e293b; /* 일반 테두리 */
 }
 
 :root {
@@ -121,5 +153,6 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-noto-sans), sans-serif;
   }
 }
