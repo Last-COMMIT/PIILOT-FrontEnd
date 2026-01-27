@@ -109,7 +109,7 @@ function TableInner<T extends Record<string, unknown>>(
                     key={col.id}
                     className={cn(
                       "flex min-w-0 items-center overflow-hidden px-4 py-3",
-                      "justify-start text-left",
+                      alignClasses[col.align ?? "left"],
                     )}
                     role="columnheader"
                   >
@@ -145,8 +145,19 @@ function TableInner<T extends Record<string, unknown>>(
                     )}
                     style={{ gridTemplateColumns: template }}
                     role="row"
+                    tabIndex={selectable ? 0 : undefined}
                     onClick={
                       selectable ? () => onRowClick(row, rowIndex) : undefined
+                    }
+                    onKeyDown={
+                      selectable
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onRowClick?.(row, rowIndex);
+                            }
+                          }
+                        : undefined
                     }
                     aria-selected={selectable ? isActive : undefined}
                   >
@@ -157,7 +168,10 @@ function TableInner<T extends Record<string, unknown>>(
                       return (
                         <div
                           key={col.id}
-                          className="flex min-w-0 items-center justify-start overflow-hidden px-4 py-3 text-left"
+                          className={cn(
+                            "flex min-w-0 items-center overflow-hidden px-4 py-3",
+                            alignClasses[col.align ?? "left"],
+                          )}
                           role="cell"
                         >
                           <span

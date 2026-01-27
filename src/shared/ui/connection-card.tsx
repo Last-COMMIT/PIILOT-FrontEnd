@@ -64,6 +64,7 @@ export interface ConnectionActionItem {
   label: string;
   variant?: ConnectionActionVariant;
   onClick?: () => void;
+  hidden?: boolean;
 }
 
 export interface ConnectionCardProps extends Omit<
@@ -186,7 +187,7 @@ const ConnectionCard = React.forwardRef<HTMLDivElement, ConnectionCardProps>(
         {actions.length > 0 ? (
           <div className="grid min-w-0 grid-cols-3 gap-2">
             {actions
-              .filter((a) => a.label !== "수정")
+              .filter((a) => !a.hidden)
               .slice(0, 3)
               .map(({ label, variant = "default", onClick }) => {
                 const config = actionButtonMap[variant];

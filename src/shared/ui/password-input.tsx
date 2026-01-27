@@ -22,7 +22,6 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
         />
         <button
           type="button"
-          tabIndex={-1}
           aria-label={visible ? "비밀번호 숨기기" : "비밀번호 보기"}
           className={cn(
             "absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--color-sidebar-text)]",
