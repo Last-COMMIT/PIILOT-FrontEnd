@@ -7,8 +7,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-noto-sans);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -25,7 +26,6 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
-  --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -46,36 +46,62 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
-  /* 커스텀 레이아웃 크기 */
   --sidebar-width: 280px;
+  --color-bg-page: #020616;
+  --color-bg-panel: #0e172a;
+  --color-border-default: #1e293b;
+  --color-bg-card: rgb(15 23 42 / 0.7);
 
-  /* 커스텀 색상 - 메인 (민트) */
-  --color-main-bg: #22d3ee;
-  --color-main-text: #22d3ee;
-
-  /* 커스텀 색상 - 사이드바 */
   --color-sidebar-bg: #0e172a;
   --color-sidebar-border: #1e293b;
   --color-sidebar-text: #94a3b8;
   --color-sidebar-hover-bg: #1e293b;
   --color-sidebar-hover-text: #ffffff;
 
-  /* 커스텀 색상 - 배경 (다크) */
-  --color-bg-main: #020616;
+  --color-main-bg: rgb(34 211 238);
+  --color-main-text: rgb(34 211 238);
+  --color-main-border: rgb(34 211 238 / 0.5);
 
-  /* 커스텀 색상 - 컨텐츠 배경 (투명도 포함) */
-  --color-mint-bg: rgb(6 182 212 / 0.15); /* 민트 */
-  --color-purple-bg: rgb(192 132 252 / 0.15); /* 퍼플 */
-  --color-green-bg: rgb(74 222 128 / 0.15); /* 그린 */
-  --color-coral-bg: rgb(248 113 113 / 0.15); /* 코랄 */
-  --color-card-bg: rgb(15 23 42 / 0.7); /* 카드 배경 */
+  --color-mint-bg: rgb(34 211 238 / 0.15);
+  --color-mint-border: rgb(14 116 144);
+  --color-mint-text: rgb(34 211 238);
 
-  /* 커스텀 색상 - 컨텐츠 테두리 */
-  --color-mint-border: #04465b; /* 민트 테두리 */
-  --color-purple-border: #3f226a; /* 퍼플 테두리 */
-  --color-green-border: #0d4e31; /* 그린 테두리 */
-  --color-coral-border: #66202a; /* 코랄 테두리 */
-  --color-content-border: #1e293b; /* 일반 테두리 */
+  --color-purple-bg: rgb(167 139 250 / 0.15);
+  --color-purple-border: rgb(88 65 160);
+  --color-purple-text: rgb(167 139 250);
+
+  --color-green-bg: rgb(74 222 128 / 0.15);
+  --color-green-border: rgb(20 115 65);
+  --color-green-text: rgb(74 222 128);
+
+  --color-coral-bg: rgb(248 113 113 / 0.15);
+  --color-coral-border: rgb(155 55 55);
+  --color-coral-text: rgb(248 113 113);
+  --color-destructive: var(--color-coral-text);
+
+  --color-yellow-bg: rgb(234 179 8 / 0.15);
+  --color-yellow-border: rgb(140 108 5);
+  --color-yellow-text: rgb(234 179 8);
+
+  --color-text-muted: #94a3b8;
+  --color-text-muted-strong: #64748b;
+
+  --color-risk-high: var(--color-coral-text);
+  --color-risk-medium: var(--color-yellow-text);
+  --color-risk-low: var(--color-green-text);
+
+  --color-option-bg: var(--color-bg-card);
+  --color-option-border: var(--color-border-default);
+  --color-option-text: #ffffff;
+  --color-option-hover-bg: var(--color-mint-bg);
+  --color-option-selected-bg: var(--color-mint-bg);
+  --color-option-selected-text: var(--color-mint-text);
+
+  --color-bg-main: var(--color-bg-page);
+  --color-content-border: var(--color-border-default);
+  --color-text-light-gray: var(--color-text-muted);
+  --color-text-dark-gray: var(--color-text-muted-strong);
+  --color-card-bg: var(--color-bg-card);
 }
 
 :root {
@@ -94,7 +120,7 @@
   --muted-foreground: oklch(0.551 0.027 264.364);
   --accent: oklch(0.967 0.003 264.542);
   --accent-foreground: oklch(0.21 0.034 264.665);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: rgb(248 113 113);
   --border: oklch(0.928 0.006 264.531);
   --input: oklch(0.928 0.006 264.531);
   --ring: oklch(0.707 0.022 261.325);
@@ -128,7 +154,7 @@
   --muted-foreground: oklch(0.707 0.022 261.325);
   --accent: oklch(0.278 0.033 256.848);
   --accent-foreground: oklch(0.985 0.002 247.839);
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: rgb(248 113 113);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);

@@ -75,8 +75,14 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-export function Sidebar() {
-  const pathname = usePathname();
+export interface SidebarProps {
+  pathname?: string;
+}
+
+export function Sidebar({ pathname: pathnameProp }: SidebarProps = {}) {
+  const fromRouter = usePathname();
+  const pathname =
+    pathnameProp !== undefined ? pathnameProp : (fromRouter ?? "");
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
 
   const toggleMenu = (menuLabel: string) => {
