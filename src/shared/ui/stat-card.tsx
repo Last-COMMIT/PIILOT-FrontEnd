@@ -5,7 +5,7 @@ import { cn } from "@/shared/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const statCardVariants = cva(
-  "rounded-xl p-5 flex flex-col gap-3 min-w-0 border",
+  "rounded-xl p-5 flex flex-col gap-4 min-w-0 border",
   {
     variants: {
       colorScheme: {

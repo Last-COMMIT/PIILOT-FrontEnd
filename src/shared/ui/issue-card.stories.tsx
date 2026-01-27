@@ -54,3 +54,38 @@ export const LowRisk: Story = {
     riskLevel: "low",
   },
 };
+
+export const MultipleCards: Story = {
+  render: () => (
+    <div className="flex flex-col gap-[0.575rem]">
+      <IssueCard
+        timestamp="2025-01-07 16:13:11"
+        title="orders (delivery_address)"
+        subtitle="주소 정보 암호화 필요"
+        detectedCount={100}
+        riskLevel="high"
+      />
+      <IssueCard
+        timestamp="2025-01-07 15:30:22"
+        title="users (email)"
+        subtitle="이메일 정보 암호화 필요"
+        detectedCount={50}
+        riskLevel="low"
+      />
+      <IssueCard
+        timestamp="2025-01-07 14:20:15"
+        title="orders (phone_number)"
+        subtitle="전화번호 정보 암호화 필요"
+        detectedCount={75}
+        riskLevel="medium"
+      />
+      <IssueCard
+        timestamp="2025-01-07 12:05:03"
+        title="customers (resident_id)"
+        subtitle="주민등록번호 정보 암호화 필요"
+        detectedCount={18}
+        riskLevel="medium"
+      />
+    </div>
+  ),
+};
