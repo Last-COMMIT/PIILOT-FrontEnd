@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 interface HeaderProps {
   className?: string;
   title?: string;
+  pathname?: string;
 }
 
 const pageTitles: Record<string, string> = {
@@ -24,8 +25,9 @@ const pageTitles: Record<string, string> = {
   "/settings": "설정",
 };
 
-export function Header({ className, title }: HeaderProps) {
-  const pathname = usePathname();
+export function Header({ className, title, pathname: pathnameProp }: HeaderProps) {
+  const fromRouter = usePathname();
+  const pathname = pathnameProp !== undefined ? pathnameProp : fromRouter ?? null;
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
 
   const pageTitle = title || (pathname && pageTitles[pathname]) || "대시보드";
@@ -65,7 +67,7 @@ export function Header({ className, title }: HeaderProps) {
           aria-expanded={isNotificationOpen}
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-coral-text)] rounded-full" />
         </button>
 
         {isNotificationOpen && (
