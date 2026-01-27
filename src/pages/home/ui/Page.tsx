@@ -3,6 +3,7 @@ import { StatCard, IssueCard, LineChart, DoughnutChart } from "@/shared/ui";
 import type { LineChartData, DoughnutChartData, IssueCardRiskLevel } from "@/shared/ui";
 
 interface IssueData {
+  id: string;
   timestamp: string;
   title: string;
   subtitle: string;
@@ -93,6 +94,7 @@ export default function HomePage() {
 
   const dbServerIssues: IssueData[] = [
     {
+      id: "db-1",
       timestamp: "2025-01-07 16:13:11",
       title: "orders (delivery_address)",
       subtitle: "주소 정보 암호화 필요",
@@ -100,6 +102,7 @@ export default function HomePage() {
       riskLevel: "high",
     },
     {
+      id: "db-2",
       timestamp: "2025-01-07 15:30:22",
       title: "users (email)",
       subtitle: "이메일 정보 암호화 필요",
@@ -107,6 +110,7 @@ export default function HomePage() {
       riskLevel: "low",
     },
     {
+      id: "db-3",
       timestamp: "2025-01-07 14:20:15",
       title: "orders (phone_number)",
       subtitle: "전화번호 정보 암호화 필요",
@@ -114,6 +118,7 @@ export default function HomePage() {
       riskLevel: "medium",
     },
     {
+      id: "db-4",
       timestamp: "2025-01-07 12:05:03",
       title: "customers (resident_id)",
       subtitle: "주민등록번호 정보 암호화 필요",
@@ -124,6 +129,7 @@ export default function HomePage() {
 
   const fileServerIssues: IssueData[] = [
     {
+      id: "file-1",
       timestamp: "2025-01-07 16:13:11",
       title: "data.jpg (S3 Storage)",
       subtitle: "이름, 주소, 주민등록번호, IP주소, 전화번호, 계좌번호, 이메일",
@@ -131,6 +137,7 @@ export default function HomePage() {
       riskLevel: "high",
     },
     {
+      id: "file-2",
       timestamp: "2025-01-07 16:13:11",
       title: "resume.pdf (S3 Storage)",
       subtitle: "주소 정보 암호화 필요",
@@ -138,6 +145,7 @@ export default function HomePage() {
       riskLevel: "medium",
     },
     {
+      id: "file-3",
       timestamp: "2025-01-07 16:13:11",
       title: "data.jpg (S3 Storage)",
       subtitle: "이름, 주소, 주민등록번호",
@@ -145,6 +153,7 @@ export default function HomePage() {
       riskLevel: "low",
     },
     {
+      id: "file-4",
       timestamp: "2025-01-07 11:22:40",
       title: "passport.png (S3 Storage)",
       subtitle: "여권번호 포함 이미지",
@@ -258,7 +267,7 @@ export default function HomePage() {
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
             {dbServerIssues.map((issue) => (
               <IssueCard
-                key={`${issue.timestamp}-${issue.title}`}
+                key={issue.id}
                 timestamp={issue.timestamp}
                 title={issue.title}
                 subtitle={issue.subtitle}
@@ -281,7 +290,7 @@ export default function HomePage() {
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
             {fileServerIssues.map((issue) => (
               <IssueCard
-                key={`${issue.timestamp}-${issue.title}`}
+                key={issue.id}
                 timestamp={issue.timestamp}
                 title={issue.title}
                 subtitle={issue.subtitle}
