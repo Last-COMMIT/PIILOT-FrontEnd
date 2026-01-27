@@ -54,41 +54,44 @@ const IssueCard = React.forwardRef<HTMLDivElement, IssueCardProps>(
       <div
         ref={ref}
         className={cn(
-          "flex items-start justify-between gap-2 rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] p-4 min-w-0",
+          "flex flex-col gap-1 rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] p-2.5 min-w-0",
           className,
         )}
         {...props}
       >
-        <div className="min-w-0 flex-1 space-y-1">
-          {timestamp != null ? (
-            <p className="text-xs text-[var(--color-text-light-gray)]">
-              {timestamp}
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+            {timestamp != null ? (
+              <p className="text-[13px] leading-tight text-[var(--color-text-light-gray)]">
+                {timestamp}
+              </p>
+            ) : null}
+            <p className="text-[14px] leading-snug font-regular text-[var(--color-sidebar-hover-text)] break-words whitespace-normal">
+              {title}
             </p>
-          ) : null}
-          <p className="text-s font-regular text-[var(--color-sidebar-hover-text)] truncate">
-            {title}
-          </p>
-          {subtitle != null ? (
-            <p className="text-xs text-[var(--color-text-light-gray)] line-clamp-2">
-              {subtitle}
+          </div>
+          <div className="shrink-0 text-right flex flex-col gap-0.5">
+            {countText != null ? (
+              <p className="text-[12px] leading-tight text-[var(--color-text-light-gray)]">
+                {countText}
+              </p>
+            ) : null}
+            <p
+              className={cn(
+                "text-[14px] leading-snug font-semibold",
+                riskLevelVariants({ riskLevel }),
+              )}
+            >
+              {RISK_LABELS[riskLevel]}
             </p>
-          ) : null}
+          </div>
         </div>
-        <div className="shrink-0 text-right space-y-1">
-          {countText != null ? (
-            <p className="text-xs text-[var(--color-text-light-gray)]">
-              {countText}
-            </p>
-          ) : null}
-          <p
-            className={cn(
-              "text-s font-semibold",
-              riskLevelVariants({ riskLevel }),
-            )}
-          >
-            {RISK_LABELS[riskLevel]}
+
+        {subtitle != null ? (
+          <p className="text-[12px] leading-snug text-[var(--color-text-light-gray)] break-words whitespace-normal">
+            {subtitle}
           </p>
-        </div>
+        ) : null}
       </div>
     );
   },

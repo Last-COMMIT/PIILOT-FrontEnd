@@ -22,8 +22,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${notoSans.variable} antialiased`}
       >
         <div className="flex h-screen overflow-hidden">
@@ -33,7 +34,7 @@ export default function RootLayout({
             style={{ marginLeft: "var(--sidebar-width)" }}
           >
             <Header />
-            <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)]">
+            <main className="flex-1 overflow-hidden bg-[var(--color-bg-main)]">
               {children}
             </main>
           </div>
