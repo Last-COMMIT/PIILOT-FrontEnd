@@ -1,6 +1,14 @@
 import { Database, FileText, TriangleAlert, Columns } from "lucide-react";
 import { StatCard, IssueCard, LineChart, DoughnutChart } from "@/shared/ui";
-import type { LineChartData, DoughnutChartData } from "@/shared/ui";
+import type { LineChartData, DoughnutChartData, IssueCardRiskLevel } from "@/shared/ui";
+
+interface IssueData {
+  timestamp: string;
+  title: string;
+  subtitle: string;
+  detectedCount: number;
+  riskLevel: IssueCardRiskLevel;
+}
 
 export default function HomePage() {
   const CHART_CARD_H = 280;
@@ -82,6 +90,68 @@ export default function HomePage() {
       },
     ],
   };
+
+  const dbServerIssues: IssueData[] = [
+    {
+      timestamp: "2025-01-07 16:13:11",
+      title: "orders (delivery_address)",
+      subtitle: "주소 정보 암호화 필요",
+      detectedCount: 100,
+      riskLevel: "high",
+    },
+    {
+      timestamp: "2025-01-07 15:30:22",
+      title: "users (email)",
+      subtitle: "이메일 정보 암호화 필요",
+      detectedCount: 50,
+      riskLevel: "low",
+    },
+    {
+      timestamp: "2025-01-07 14:20:15",
+      title: "orders (phone_number)",
+      subtitle: "전화번호 정보 암호화 필요",
+      detectedCount: 75,
+      riskLevel: "medium",
+    },
+    {
+      timestamp: "2025-01-07 12:05:03",
+      title: "customers (resident_id)",
+      subtitle: "주민등록번호 정보 암호화 필요",
+      detectedCount: 18,
+      riskLevel: "medium",
+    },
+  ];
+
+  const fileServerIssues: IssueData[] = [
+    {
+      timestamp: "2025-01-07 16:13:11",
+      title: "data.jpg (S3 Storage)",
+      subtitle: "이름, 주소, 주민등록번호, IP주소, 전화번호, 계좌번호, 이메일",
+      detectedCount: 100,
+      riskLevel: "high",
+    },
+    {
+      timestamp: "2025-01-07 16:13:11",
+      title: "resume.pdf (S3 Storage)",
+      subtitle: "주소 정보 암호화 필요",
+      detectedCount: 100,
+      riskLevel: "medium",
+    },
+    {
+      timestamp: "2025-01-07 16:13:11",
+      title: "data.jpg (S3 Storage)",
+      subtitle: "이름, 주소, 주민등록번호",
+      detectedCount: 100,
+      riskLevel: "low",
+    },
+    {
+      timestamp: "2025-01-07 11:22:40",
+      title: "passport.png (S3 Storage)",
+      subtitle: "여권번호 포함 이미지",
+      detectedCount: 6,
+      riskLevel: "medium",
+    },
+  ];
 
   return (
     <div className="h-full flex flex-col p-6 gap-5 overflow-hidden">
@@ -186,34 +256,16 @@ export default function HomePage() {
             </button>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
-            <IssueCard
-              timestamp="2025-01-07 16:13:11"
-              title="orders (delivery_address)"
-              subtitle="주소 정보 암호화 필요"
-              detectedCount={100}
-              riskLevel="high"
-            />
-            <IssueCard
-              timestamp="2025-01-07 15:30:22"
-              title="users (email)"
-              subtitle="이메일 정보 암호화 필요"
-              detectedCount={50}
-              riskLevel="low"
-            />
-            <IssueCard
-              timestamp="2025-01-07 14:20:15"
-              title="orders (phone_number)"
-              subtitle="전화번호 정보 암호화 필요"
-              detectedCount={75}
-              riskLevel="medium"
-            />
-            <IssueCard
-              timestamp="2025-01-07 12:05:03"
-              title="customers (resident_id)"
-              subtitle="주민등록번호 정보 암호화 필요"
-              detectedCount={18}
-              riskLevel="medium"
-            />
+            {dbServerIssues.map((issue) => (
+              <IssueCard
+                key={`${issue.timestamp}-${issue.title}`}
+                timestamp={issue.timestamp}
+                title={issue.title}
+                subtitle={issue.subtitle}
+                detectedCount={issue.detectedCount}
+                riskLevel={issue.riskLevel}
+              />
+            ))}
           </div>
         </div>
 
@@ -227,34 +279,16 @@ export default function HomePage() {
             </button>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
-            <IssueCard
-              timestamp="2025-01-07 16:13:11"
-              title="data.jpg (S3 Storage)"
-              subtitle="이름, 주소, 주민등록번호, IP주소, 전화번호, 계좌번호, 이메일"
-              detectedCount={100}
-              riskLevel="high"
-            />
-            <IssueCard
-              timestamp="2025-01-07 16:13:11"
-              title="resume.pdf (S3 Storage)"
-              subtitle="주소 정보 암호화 필요"
-              detectedCount={100}
-              riskLevel="medium"
-            />
-            <IssueCard
-              timestamp="2025-01-07 16:13:11"
-              title="data.jpg (S3 Storage)"
-              subtitle="이름, 주소, 주민등록번호"
-              detectedCount={100}
-              riskLevel="low"
-            />
-            <IssueCard
-              timestamp="2025-01-07 11:22:40"
-              title="passport.png (S3 Storage)"
-              subtitle="여권번호 포함 이미지"
-              detectedCount={6}
-              riskLevel="medium"
-            />
+            {fileServerIssues.map((issue) => (
+              <IssueCard
+                key={`${issue.timestamp}-${issue.title}`}
+                timestamp={issue.timestamp}
+                title={issue.title}
+                subtitle={issue.subtitle}
+                detectedCount={issue.detectedCount}
+                riskLevel={issue.riskLevel}
+              />
+            ))}
           </div>
         </div>
       </div>

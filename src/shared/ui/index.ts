@@ -11,6 +11,7 @@ export type {
 export { Dropdown } from "./dropdown";
 export { Input, inputVariants } from "./input";
 export { IssueCard, riskLevelVariants, RISK_LABELS } from "./issue-card";
+export type { IssueCardRiskLevel } from "./issue-card";
 export { Modal } from "./modal";
 export { PasswordInput } from "./password-input";
 export { StatCard, statCardVariants } from "./stat-card";
