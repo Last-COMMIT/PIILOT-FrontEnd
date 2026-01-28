@@ -129,6 +129,7 @@ export default function DbConnectionPage() {
   const [isViewMode, setIsViewMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [originalPassword, setOriginalPassword] = useState<string>("");
   const [formData, setFormData] = useState<ConnectionFormData>({
     title: "",
     dbType: "postgresql",
@@ -194,6 +195,7 @@ export default function DbConnectionPage() {
     setIsViewMode(false);
     setIsEditMode(true);
     setEditingId(id);
+    setOriginalPassword(connection.password);
     setFormData({
       title: connection.title,
       dbType: connection.dbType,
@@ -201,7 +203,7 @@ export default function DbConnectionPage() {
       port: connection.port,
       databaseName: connection.databaseName,
       username: connection.username,
-      password: connection.password,
+      password: "",
       managerName: connection.managerName,
       managerEmail: connection.managerEmail,
     });
@@ -217,6 +219,27 @@ export default function DbConnectionPage() {
   };
 
   const handleSave = () => {
+    // 비밀번호 처리: 수정 모드에서 비밀번호가 비어있으면 원래 비밀번호 사용
+    const passwordToSave =
+      isEditMode && editingId && !formData.password.trim()
+        ? originalPassword
+        : formData.password;
+
+    // 필수 필드 유효성 검사
+    if (
+      !formData.title.trim() ||
+      !formData.host.trim() ||
+      !formData.port.trim() ||
+      !formData.databaseName.trim() ||
+      !formData.username.trim() ||
+      (!isEditMode && !passwordToSave.trim()) ||
+      !formData.managerName.trim() ||
+      !formData.managerEmail.trim()
+    ) {
+      alert("모든 항목을 입력해주세요.");
+      return;
+    }
+
     if (isEditMode && editingId) {
       // 수정 모드
       setConnections((prev) =>
@@ -230,7 +253,7 @@ export default function DbConnectionPage() {
                 port: formData.port,
                 databaseName: formData.databaseName,
                 username: formData.username,
-                password: formData.password,
+                password: passwordToSave,
                 managerName: formData.managerName,
                 managerEmail: formData.managerEmail,
               }
@@ -249,13 +272,13 @@ export default function DbConnectionPage() {
         port: formData.port,
         databaseName: formData.databaseName,
         username: formData.username,
-        password: formData.password,
+        password: passwordToSave,
         managerName: formData.managerName,
         managerEmail: formData.managerEmail,
         tableCount: 0,
         columnCount: 0,
       };
-      setConnections((prev) => [...prev, newConnection]);
+      setConnections((prev) => [newConnection, ...prev]);
     }
     setIsModalOpen(false);
   };
@@ -404,6 +427,12 @@ export default function DbConnectionPage() {
                   colorScheme="main"
                   appearance="outline"
                   onClick={() => {
+                    if (editingId) {
+                      const connection = connections.find((c) => c.id === editingId);
+                      if (connection) {
+                        setOriginalPassword(connection.password);
+                      }
+                    }
                     setIsViewMode(false);
                     setIsEditMode(true);
                     setFormData((prev) => ({ ...prev, password: "" }));
@@ -428,7 +457,7 @@ export default function DbConnectionPage() {
                   appearance="outline"
                   onClick={handleSave}
                 >
-                  {isEditMode ? "수정" : "저장"}
+                  {isEditMode ? "저장" : "추가"}
                 </Button>
               </>
             )}
@@ -437,10 +466,14 @@ export default function DbConnectionPage() {
       >
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+            <label
+              htmlFor="connection-title"
+              className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+            >
               연결 이름
             </label>
             <Input
+              id="connection-title"
               type="text"
               value={formData.title}
               onChange={(e) =>
@@ -453,10 +486,14 @@ export default function DbConnectionPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+            <label
+              htmlFor="connection-db-type"
+              className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+            >
               서버 유형
             </label>
             <Dropdown
+              id="connection-db-type"
               options={DB_TYPE_OPTIONS}
               value={formData.dbType}
               onChange={(value) =>
@@ -472,10 +509,14 @@ export default function DbConnectionPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+              <label
+                htmlFor="connection-host"
+                className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+              >
                 호스트
               </label>
               <Input
+                id="connection-host"
                 type="text"
                 value={formData.host}
                 onChange={(e) =>
@@ -488,10 +529,14 @@ export default function DbConnectionPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+              <label
+                htmlFor="connection-port"
+                className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+              >
                 포트
               </label>
               <Input
+                id="connection-port"
                 type="text"
                 value={formData.port}
                 onChange={(e) =>
@@ -505,10 +550,14 @@ export default function DbConnectionPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+            <label
+              htmlFor="connection-database-name"
+              className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+            >
               데이터베이스명
             </label>
             <Input
+              id="connection-database-name"
               type="text"
               value={formData.databaseName}
               onChange={(e) =>
@@ -525,10 +574,14 @@ export default function DbConnectionPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+              <label
+                htmlFor="connection-username"
+                className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+              >
                 사용자명
               </label>
               <Input
+                id="connection-username"
                 type="text"
                 value={formData.username}
                 onChange={(e) =>
@@ -541,10 +594,14 @@ export default function DbConnectionPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+              <label
+                htmlFor="connection-password"
+                className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+              >
                 비밀번호
               </label>
               <Input
+                id="connection-password"
                 type="password"
                 value={formData.password}
                 onChange={(e) =>

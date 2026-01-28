@@ -64,6 +64,7 @@ export interface DropdownProps extends VariantProps<typeof triggerVariants> {
   disabled?: boolean;
   className?: string;
   triggerClassName?: string;
+  id?: string;
 }
 
 function Dropdown({
@@ -76,6 +77,7 @@ function Dropdown({
   size = "default",
   className,
   triggerClassName,
+  id,
 }: DropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -122,6 +124,7 @@ function Dropdown({
       onKeyDown={handleKeyDown}
     >
       <button
+        id={id}
         type="button"
         disabled={disabled}
         aria-expanded={isOpen}
