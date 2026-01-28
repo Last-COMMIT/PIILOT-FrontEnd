@@ -174,7 +174,7 @@ export default function HomePage() {
           colorScheme="mint"
         />
         <StatCard
-          title="개인정보 포함 칼럼 수"
+          title="개인정보 포함 컬럼 수"
           value="625,500"
           detail="암호화 91%"
           trend="up"

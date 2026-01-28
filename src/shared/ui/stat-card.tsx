@@ -16,6 +16,8 @@ const statCardVariants = cva(
           "bg-[var(--color-purple-bg)] border-[var(--color-purple-border)]",
         green: "bg-[var(--color-green-bg)] border-[var(--color-green-border)]",
         coral: "bg-[var(--color-coral-bg)] border-[var(--color-coral-border)]",
+        warning:
+          "bg-[var(--color-yellow-bg)] border-[var(--color-yellow-border)]",
       },
     },
     defaultVariants: {
@@ -35,6 +37,7 @@ const iconBoxVariants = cva(
         purple: "bg-[var(--color-purple-bg)] text-[var(--color-purple-text)]",
         green: "bg-[var(--color-green-bg)] text-[var(--color-green-text)]",
         coral: "bg-[var(--color-coral-bg)] text-[var(--color-coral-text)]",
+        warning: "bg-[var(--color-yellow-bg)] text-[var(--color-yellow-text)]",
       },
     },
     defaultVariants: {

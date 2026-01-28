@@ -4,12 +4,13 @@ import * as React from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export type TableSectionBadgeVariant = "error" | "warning" | "success";
+export type TableSectionBadgeVariant = "error" | "warning" | "success" | "plain";
 
 const badgeVariantClasses: Record<TableSectionBadgeVariant, string> = {
   error: "text-[var(--color-coral-text)] bg-[var(--color-coral-bg)]",
   warning: "text-[var(--color-yellow-text)] bg-[var(--color-yellow-bg)]",
   success: "text-[var(--color-green-text)] bg-[var(--color-green-bg)]",
+  plain: "text-[var(--color-coral-text)] bg-transparent",
 };
 
 export interface TableSectionProps extends Omit<
@@ -73,7 +74,8 @@ const TableSection = React.forwardRef<HTMLDivElement, TableSectionProps>(
           {badge != null ? (
             <span
               className={cn(
-                "shrink-0 self-center rounded-md px-2.5 py-1.5 text-sm font-medium",
+                "shrink-0 self-center text-sm font-semibold",
+                badgeVariant !== "plain" && "rounded-md px-2.5 py-1.5 font-medium",
                 badgeVariantClasses[badgeVariant],
               )}
             >
