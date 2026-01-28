@@ -181,4 +181,32 @@
     @apply bg-background text-foreground;
     font-family: var(--font-noto-sans), sans-serif;
   }
+
+  /* 스크롤바 스타일 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.4);
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(148, 163, 184, 0.6);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: rgba(148, 163, 184, 0.8);
+  }
 }
