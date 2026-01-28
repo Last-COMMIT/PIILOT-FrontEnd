@@ -96,8 +96,7 @@ function TableInner<T extends Record<string, unknown>>(
       >
         <div className={cn("flex min-w-0 flex-col h-full", scrollable && "min-w-max")}>
           <div
-            role="table"
-            aria-label="데이터 테이블"
+            role="presentation"
             className={cn(
               "flex min-w-0 flex-col h-full",
               scrollable && "min-w-max",
@@ -113,7 +112,7 @@ function TableInner<T extends Record<string, unknown>>(
                   caused by vertical scrollbar width. */}
               <div
                 className={cn(
-                  "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]",
+                  "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:auto]",
                 )}
                 style={
                   maxBodyHeight != null && maxBodyHeight !== "100%"
@@ -122,7 +121,8 @@ function TableInner<T extends Record<string, unknown>>(
                 }
                 tabIndex={maxBodyHeight != null ? 0 : undefined}
                 onScroll={onBodyScroll}
-                role="rowgroup"
+                role="table"
+                aria-label="데이터 테이블"
               >
                 <div role="rowgroup" className="shrink-0 sticky top-0 z-10">
                   <div
@@ -145,57 +145,59 @@ function TableInner<T extends Record<string, unknown>>(
                   </div>
                 </div>
 
-                {data.map((row, rowIndex) => {
-                  const selectable = rowSelectionEnabled && onRowClick != null;
-                  const isActive = selectable && selectedRowIndex === rowIndex;
-                  return (
-                    <div
-                      key={rowIndex}
-                      className={cn(
-                        "grid border-b text-[var(--color-text-muted)] last:border-b-0",
-                        isActive
-                          ? "border-2 border-[var(--color-mint-border)] bg-[var(--color-mint-bg)]"
-                          : "border-b border-[var(--color-content-border)]",
-                        selectable && "cursor-pointer",
-                      )}
-                      style={{ gridTemplateColumns: template }}
-                      role="row"
-                      tabIndex={selectable ? 0 : undefined}
-                      onClick={
-                        selectable ? () => onRowClick(row, rowIndex) : undefined
-                      }
-                      onKeyDown={
-                        selectable
-                          ? (e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                onRowClick?.(row, rowIndex);
+                <div role="rowgroup">
+                  {data.map((row, rowIndex) => {
+                    const selectable = rowSelectionEnabled && onRowClick != null;
+                    const isActive = selectable && selectedRowIndex === rowIndex;
+                    return (
+                      <div
+                        key={rowIndex}
+                        className={cn(
+                          "grid border-b text-[var(--color-text-muted)] last:border-b-0",
+                          isActive
+                            ? "border-2 border-[var(--color-mint-border)] bg-[var(--color-mint-bg)]"
+                            : "border-b border-[var(--color-content-border)]",
+                          selectable && "cursor-pointer",
+                        )}
+                        style={{ gridTemplateColumns: template }}
+                        role="row"
+                        tabIndex={selectable ? 0 : undefined}
+                        onClick={
+                          selectable ? () => onRowClick(row, rowIndex) : undefined
+                        }
+                        onKeyDown={
+                          selectable
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  onRowClick?.(row, rowIndex);
+                                }
                               }
-                            }
-                          : undefined
-                      }
-                      aria-selected={selectable ? isActive : undefined}
-                    >
-                      {columns.map((col) => {
-                        const value = (row as Record<string, unknown>)[col.id];
-                        const content =
-                          col.render?.(value, row) ?? (value as React.ReactNode);
-                        return (
-                          <div
-                            key={col.id}
-                            className={cn(
-                              "flex min-w-0 items-center overflow-visible px-4 py-3",
-                              alignClasses[col.align ?? "left"],
-                            )}
-                            role="cell"
-                          >
-                            <div className="w-full min-w-0">{content}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                            : undefined
+                        }
+                        aria-selected={selectable ? isActive : undefined}
+                      >
+                        {columns.map((col) => {
+                          const value = (row as Record<string, unknown>)[col.id];
+                          const content =
+                            col.render?.(value, row) ?? (value as React.ReactNode);
+                          return (
+                            <div
+                              key={col.id}
+                              className={cn(
+                                "flex min-w-0 items-center overflow-visible px-4 py-3",
+                                alignClasses[col.align ?? "left"],
+                              )}
+                              role="cell"
+                            >
+                              <div className="w-full min-w-0">{content}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

@@ -54,7 +54,7 @@ interface SampleRow extends Record<string, unknown> {
 }
 
 const sampleColumns: TableColumn<SampleRow>[] = [
-  { id: "columnName", label: "칼럼명", width: 1.2 },
+  { id: "columnName", label: "컬럼명", width: 1.2 },
   { id: "piiType", label: "개인정보 유형", width: 1.2 },
   { id: "recordCount", label: "레코드 수", width: 1 },
   {
