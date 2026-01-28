@@ -82,12 +82,7 @@ const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
         className={cn(statCardVariants({ colorScheme }), className)}
         {...props}
       >
-        <div
-          className={cn(
-            "flex gap-4",
-            detail != null ? "items-start" : "items-center",
-          )}
-        >
+        <div className="flex gap-4 items-start">
           <div className="min-w-0 flex-1 flex flex-col">
             <h3 className="text-sm font-medium text-[var(--color-text-muted)] truncate">
               {title}

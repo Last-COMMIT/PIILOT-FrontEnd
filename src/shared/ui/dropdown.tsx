@@ -9,6 +9,7 @@ import { cn } from "@/shared/lib/utils";
 export interface DropdownOption {
   value: string;
   label: string;
+  icon?: React.ReactNode;
 }
 
 const triggerVariants = cva(
@@ -43,7 +44,7 @@ const listClasses = [
 ].join(" ");
 
 const optionClasses = [
-  "flex w-full cursor-pointer items-center px-4 py-2 text-sm text-[var(--color-sidebar-hover-text)] outline-none",
+  "flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm text-[var(--color-sidebar-hover-text)] outline-none",
   "hover:bg-[var(--color-mint-bg)] focus:bg-[var(--color-mint-bg)]",
   "data-[selected=true]:bg-[var(--color-mint-bg)] data-[selected=true]:text-[var(--color-mint-text)]",
 ].join(" ");
@@ -63,6 +64,7 @@ export interface DropdownProps extends VariantProps<typeof triggerVariants> {
   disabled?: boolean;
   className?: string;
   triggerClassName?: string;
+  id?: string;
 }
 
 function Dropdown({
@@ -75,6 +77,7 @@ function Dropdown({
   size = "default",
   className,
   triggerClassName,
+  id,
 }: DropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -121,6 +124,7 @@ function Dropdown({
       onKeyDown={handleKeyDown}
     >
       <button
+        id={id}
         type="button"
         disabled={disabled}
         aria-expanded={isOpen}
@@ -136,10 +140,11 @@ function Dropdown({
       >
         <span
           className={cn(
-            "flex-1 truncate text-left",
+            "flex-1 truncate text-left flex items-center gap-2",
             !selectedOption && "text-[var(--color-sidebar-text)]",
           )}
         >
+          {selectedOption?.icon}
           {displayLabel}
         </span>
         <ChevronDown
@@ -171,6 +176,7 @@ function Dropdown({
                 handleClose();
               }}
             >
+              {opt.icon && <span className="shrink-0">{opt.icon}</span>}
               {opt.label}
             </li>
           ))}

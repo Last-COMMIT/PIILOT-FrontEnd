@@ -103,7 +103,7 @@ const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="shrink-0 rounded-md p-1 text-[var(--color-text-light-gray)] transition-colors hover:bg-[var(--color-content-border)]/50 hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--color-content-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-sidebar-bg)]"
+              className="shrink-0 rounded-md p-1 text-[var(--color-text-light-gray)] transition-colors hover:bg-[var(--color-content-border)]/50 hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--color-content-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-sidebar-bg)] cursor-pointer"
               aria-label="닫기"
             >
               <X className="size-5" />
