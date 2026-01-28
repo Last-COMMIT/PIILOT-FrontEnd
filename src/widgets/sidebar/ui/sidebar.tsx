@@ -38,7 +38,7 @@ const menuItems: MenuItem[] = [
     icon: Workflow,
     children: [
       { label: "DB 서버 연결 관리", href: "/db-connection" },
-      { label: "파일 서버 연결 관리", href: "/connections/file" },
+      { label: "파일 서버 연결 관리", href: "/file-connection" },
     ],
   },
   {
