@@ -1,57 +1,35 @@
 "use client";
 
-import { useMemo } from "react";
 import { Lock } from "lucide-react";
 import { Modal } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 
 type RiskLevel = "높음" | "중간" | "낮음";
 
-interface UnencryptedData extends Record<string, unknown> {
+interface FileIssue {
   id: string;
-  user_id: number;
-  email: string;
-}
-
-interface IssueColumn {
-  id: string;
-  columnName: string;
+  fileName: string;
+  filePath: string;
+  personalInfoCount: number;
   personalInfoType: string;
-  recordCount: number;
   riskLevel: RiskLevel;
 }
 
-interface TableIssue {
+interface FileServerIssue {
   id: string;
-  tableName: string;
-  dbConnection: string;
+  serverName: string;
+  serverType: string;
   manager: string;
   issueCount: number;
-  columns: IssueColumn[];
+  files: FileIssue[];
 }
 
 interface IssueDetailModalProps {
   open: boolean;
   onClose: () => void;
-  issue: TableIssue;
-  column: IssueColumn | null;
+  issue: FileServerIssue;
+  file: FileIssue | null;
 }
-
-const generateUnencryptedData = (issue: TableIssue): UnencryptedData[] => {
-  void issue;
-  return [
-    { id: "0", user_id: 0, email: "honggildong@naver.com" },
-    { id: "1", user_id: 1, email: "minsu.kim@gmail.com" },
-    { id: "2", user_id: 2, email: "jiyoon.lee@hanmail.net" },
-    { id: "3", user_id: 3, email: "yuna.park@gmail.com" },
-    { id: "4", user_id: 4, email: "seojun95@naver.com" },
-    { id: "5", user_id: 5, email: "hyejin.k@daum.net" },
-    { id: "6", user_id: 6, email: "chulsoo123@gmail.com" },
-    { id: "7", user_id: 7, email: "bora_lee@naver.com" },
-    { id: "8", user_id: 8, email: "junyoung.kim@gmail.com" },
-    { id: "9", user_id: 9, email: "somin88@hanmail.net" },
-  ];
-};
 
 const getRiskLevelColor = (riskLevel: RiskLevel): string => {
   switch (riskLevel) {
@@ -70,14 +48,9 @@ export default function IssueDetailModal({
   open,
   onClose,
   issue,
-  column,
+  file,
 }: IssueDetailModalProps) {
-  const unencryptedData = useMemo(
-    () => generateUnencryptedData(issue),
-    [issue],
-  );
-
-  const selectedColumn = column ?? issue.columns[0];
+  const selectedFile = file ?? issue.files[0];
 
   // 담당자 이메일 매핑 (실제로는 API에서 가져올 데이터)
   const managerEmailMap: Record<string, string> = {
@@ -86,49 +59,50 @@ export default function IssueDetailModal({
     "이순신 과장": "sunsin.lee@naver.com",
     "박영희 대리": "younghee.park@example.com",
     "최민수 과장": "minsu.choi@example.com",
+    "정수진 대리": "sujin.jung@example.com",
   };
 
   const managerEmail = managerEmailMap[issue.manager] || "unknown@example.com";
 
+  // 파일 확장자에서 파일 유형 추출
+  const getFileType = (fileName: string): string => {
+    const ext = fileName.split(".").pop()?.toUpperCase() || "UNKNOWN";
+    return ext;
+  };
+
   // 첫 번째 그리드 필드 정의
   const firstGridFields = [
     {
-      label: "테이블 명",
-      value: issue.tableName,
+      label: "파일명",
+      value: selectedFile.fileName,
     },
     {
-      label: "컬럼명",
-      value: selectedColumn.columnName,
+      label: "파일 유형",
+      value: getFileType(selectedFile.fileName),
     },
     {
-      label: "개인정보 유형",
-      value: selectedColumn.personalInfoType,
+      label: "검출된 개인정보 수",
+      value: `${selectedFile.personalInfoCount}건`,
+      className: "tabular-nums",
     },
     {
       label: "위험도",
-      value: selectedColumn.riskLevel,
-      className: cn(
-        "font-semibold text-sm",
-        getRiskLevelColor(selectedColumn.riskLevel),
-      ),
+      value: selectedFile.riskLevel,
+      className: cn("font-semibold text-sm", getRiskLevelColor(selectedFile.riskLevel)),
+    },
+    {
+      label: "개인정보 유형",
+      value: selectedFile.personalInfoType,
+      className: "break-words whitespace-normal",
+    },
+    {
+      label: "스캔 일시",
+      value: "2025.01.13 04:00",
     },
   ];
 
   // 두 번째 그리드 필드 정의
   const secondGridFields = [
-    {
-      label: "보안필요 레코드 수 / 총 레코드 수",
-      value: `100건 / ${selectedColumn.recordCount.toLocaleString()}건`,
-      className: "tabular-nums",
-    },
-    {
-      label: "스캔 일시",
-      value: "2025.01.13 19:30",
-    },
-  ];
-
-  // 세 번째 그리드 필드 정의
-  const thirdGridFields = [
     {
       label: "담당자",
       value: issue.manager,
@@ -145,7 +119,7 @@ export default function IssueDetailModal({
       onClose={onClose}
       title="개인정보 이슈 상세"
       size="wide"
-      className="max-w-5xl !max-h-[80vh]"
+      className="max-w-6xl !max-h-[98vh]"
     >
       <div className="flex flex-col gap-5 px-4 py-2">
         <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-coral-bg)]/15 border border-[var(--color-coral-border)]">
@@ -155,54 +129,44 @@ export default function IssueDetailModal({
               암호화되지 않은 개인정보
             </p>
             <p className="text-sm text-[var(--color-text-light-gray)]">
-              이 컬럼의 개인정보는 평문으로 저장되어 있어 보안 위험이 있습니다.
+              이 파일의 개인정보는 마스킹 처리되지 않아 보안 위험이 있습니다.
               즉시 암호화 조치가 필요합니다.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-8">
+          {/* 왼쪽: 원본 파일 미리보기 */}
           <div className="flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-white text-center">
-              암호화되지 않은 데이터 목록
+              원본 파일
             </h3>
-            <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-[var(--color-sidebar-bg)]">
-                  <tr className="text-[var(--color-text-light-gray)]">
-                    <th className="px-4 py-3 text-left border-b border-r border-[var(--color-content-border)] w-[110px]">
-                      user_id
-                    </th>
-                    <th className="px-4 py-3 text-left border-b border-[var(--color-content-border)]">
-                      email
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unencryptedData.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-[var(--color-content-border)] last:border-b-0"
-                    >
-                      <td className="px-4 py-3 text-white border-r border-[var(--color-content-border)] tabular-nums">
-                        {row.user_id}
-                      </td>
-                      <td className="px-4 py-3 text-white">{row.email}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden bg-[var(--color-sidebar-bg)]">
+              <div className="p-8 flex items-center justify-center min-h-[400px]">
+                <div className="text-center space-y-4">
+                  <div className="text-6xl text-[var(--color-text-light-gray)]">
+                    📄
+                  </div>
+                  <p className="text-sm text-[var(--color-text-light-gray)]">
+                    파일 미리보기 영역
+                  </p>
+                  <p className="text-xs text-[var(--color-text-light-gray)]/60">
+                    {selectedFile.fileName}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col pt-[30px] pb-6">
+          {/* 오른쪽: 이슈 상세 정보 */}
+          <div className="flex flex-col pt-[45px] pb-6">
             <div className="space-y-7">
               <div>
                 <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                  DB 연결
+                  파일 연결
                 </p>
                 <p className="text-white font-semibold text-sm">
-                  {issue.dbConnection}
+                  {issue.serverType}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-7">
@@ -228,23 +192,6 @@ export default function IssueDetailModal({
                     <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
                       {field.label}
                     </p>
-                    <p
-                      className={cn(
-                        "text-white font-semibold text-sm",
-                        field.className,
-                      )}
-                    >
-                      {field.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7">
-                {thirdGridFields.map((field, index) => (
-                  <div key={index}>
-                    <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                      {field.label}
-                    </p>
                     <p className="text-white font-semibold text-sm">
                       {field.value}
                     </p>
@@ -258,3 +205,4 @@ export default function IssueDetailModal({
     </Modal>
   );
 }
+

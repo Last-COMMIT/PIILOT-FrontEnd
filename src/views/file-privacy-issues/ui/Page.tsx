@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { AlertTriangle, Lock, FileText, Database } from "lucide-react";
+import { AlertTriangle, Lock, FileText, Folder } from "lucide-react";
 import { StatCard, Table, Button, TableSection } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
@@ -10,174 +10,205 @@ import IssueDetailModal from "./IssueDetailModal";
 type RiskLevel = "높음" | "중간" | "낮음";
 type WorkStatus = "진행중" | "해결완료" | "진행시작";
 
-interface IssueColumn extends Record<string, unknown> {
+interface FileIssue extends Record<string, unknown> {
   id: string;
-  columnName: string;
+  fileName: string;
+  filePath: string;
+  personalInfoCount: number;
   personalInfoType: string;
-  recordCount: number;
   riskLevel: RiskLevel;
   workStatus: WorkStatus;
 }
 
-interface TableIssue {
+interface FileServerIssue {
   id: string;
-  tableName: string;
-  dbConnection: string;
+  serverName: string;
+  serverType: string;
   manager: string;
   issueCount: number;
-  columns: IssueColumn[];
+  files: FileIssue[];
 }
 
-const generateMockIssues = (): TableIssue[] => {
+const generateMockIssues = (): FileServerIssue[] => {
   return [
     {
-      id: "users",
-      tableName: "users",
-      dbConnection: "운영 DB (PostgreSQL)",
+      id: "s3-doc-1",
+      serverName: "S3 Document Storage",
+      serverType: "Amazon S3",
       manager: "홍길동 대리",
       issueCount: 1,
-      columns: [
+      files: [
         {
-          id: "users-email",
-          columnName: "email",
-          personalInfoType: "이메일",
-          recordCount: 125_000,
+          id: "s3-doc-1-payment",
+          fileName: "payment_capture.png",
+          filePath: "desktop/payment/add",
+          personalInfoCount: 5,
+          personalInfoType: "이름, 전화번호",
           riskLevel: "낮음",
           workStatus: "진행중",
         },
       ],
     },
     {
-      id: "orders",
-      tableName: "orders",
-      dbConnection: "운영 DB (PostgreSQL)",
+      id: "s3-doc-2",
+      serverName: "S3 Document Storage",
+      serverType: "Amazon S3",
       manager: "김철수 대리",
       issueCount: 2,
-      columns: [
+      files: [
         {
-          id: "orders-delivery_address",
-          columnName: "delivery_address",
-          personalInfoType: "주소",
-          recordCount: 89_000,
+          id: "s3-doc-2-profile",
+          fileName: "profile_photo.png",
+          filePath: "desktop/user/add",
+          personalInfoCount: 9,
+          personalInfoType:
+            "이름, 주민번호, 주소, IP주소, 전화번호, 계좌번호, 이메일",
           riskLevel: "높음",
           workStatus: "진행중",
         },
         {
-          id: "orders-phone_number",
-          columnName: "phone_number",
-          personalInfoType: "전화번호",
-          recordCount: 125_000,
+          id: "s3-doc-2-guide",
+          fileName: "user_guide.txt",
+          filePath: "desktop/user/add",
+          personalInfoCount: 3,
+          personalInfoType: "이름, 전화번호",
           riskLevel: "중간",
           workStatus: "해결완료",
         },
       ],
     },
     {
-      id: "customer_backup",
-      tableName: "customer_backup",
-      dbConnection: "운영 DB (PostgreSQL)",
+      id: "nas-legacy",
+      serverName: "Legacy NAS Share",
+      serverType: "Legacy NAS Share",
       manager: "이순신 과장",
       issueCount: 1,
-      columns: [
+      files: [
         {
-          id: "customer_backup-email",
-          columnName: "email",
-          personalInfoType: "이메일",
-          recordCount: 7_000,
+          id: "nas-legacy-notice",
+          fileName: "notice_content.docs",
+          filePath: "desktop/notice/list",
+          personalInfoCount: 2,
+          personalInfoType: "이름, 전화번호",
           riskLevel: "낮음",
-          workStatus: "진행시작",
+          workStatus: "진행중",
         },
       ],
     },
     {
-      id: "payments",
-      tableName: "payments",
-      dbConnection: "레거시 시스템 (Oracle)",
+      id: "azure-storage",
+      serverName: "Azure Blob Storage",
+      serverType: "Azure Blob Storage",
       manager: "박영희 대리",
-      issueCount: 3,
-      columns: [
+      issueCount: 2,
+      files: [
         {
-          id: "payments-card_number",
-          columnName: "card_number",
-          personalInfoType: "계좌번호",
-          recordCount: 45_000,
+          id: "azure-storage-contract",
+          fileName: "contract_2024.pdf",
+          filePath: "documents/legal/contracts",
+          personalInfoCount: 12,
+          personalInfoType: "이름, 주민번호, 주소, 계좌번호, 이메일, 전화번호",
           riskLevel: "높음",
           workStatus: "진행시작",
         },
         {
-          id: "payments-ssn",
-          columnName: "ssn",
-          personalInfoType: "주민등록번호",
-          recordCount: 32_000,
+          id: "azure-storage-invoice",
+          fileName: "invoice_january.xlsx",
+          filePath: "documents/finance/invoices",
+          personalInfoCount: 7,
+          personalInfoType: "이름, 이메일, 전화번호, 계좌번호",
+          riskLevel: "중간",
+          workStatus: "진행중",
+        },
+      ],
+    },
+    {
+      id: "gcp-storage",
+      serverName: "Google Cloud Storage",
+      serverType: "Google Cloud Storage",
+      manager: "최민수 과장",
+      issueCount: 3,
+      files: [
+        {
+          id: "gcp-storage-resume",
+          fileName: "employee_resume_2024.docx",
+          filePath: "hr/recruitment/resumes",
+          personalInfoCount: 15,
+          personalInfoType: "이름, 주민번호, 주소, 전화번호, 이메일, 학력, 경력",
           riskLevel: "높음",
           workStatus: "진행중",
         },
         {
-          id: "payments-name",
-          columnName: "name",
-          personalInfoType: "이름",
-          recordCount: 78_000,
-          riskLevel: "중간",
+          id: "gcp-storage-medical",
+          fileName: "medical_record_backup.dat",
+          filePath: "healthcare/records/backup",
+          personalInfoCount: 8,
+          personalInfoType: "이름, 주민번호, 진단정보, 처방전",
+          riskLevel: "높음",
           workStatus: "해결완료",
         },
+        {
+          id: "gcp-storage-log",
+          fileName: "access_log_2024.csv",
+          filePath: "logs/security/access",
+          personalInfoCount: 4,
+          personalInfoType: "IP주소, 쿠키정보",
+          riskLevel: "낮음",
+          workStatus: "진행시작",
+        },
       ],
     },
     {
-      id: "employees",
-      tableName: "employees",
-      dbConnection: "고객 DB (MySQL)",
-      manager: "최민수 과장",
-      issueCount: 2,
-      columns: [
+      id: "local-nas",
+      serverName: "Local NAS Server",
+      serverType: "Local NAS Server",
+      manager: "정수진 대리",
+      issueCount: 1,
+      files: [
         {
-          id: "employees-phone",
-          columnName: "phone",
-          personalInfoType: "전화번호",
-          recordCount: 156_000,
-          riskLevel: "중간",
+          id: "local-nas-backup",
+          fileName: "customer_database_backup.sql",
+          filePath: "backup/database/daily",
+          personalInfoCount: 25,
+          personalInfoType: "이름, 주민번호, 주소, 전화번호, 이메일, 계좌번호, 신용카드번호",
+          riskLevel: "높음",
           workStatus: "진행중",
-        },
-        {
-          id: "employees-address",
-          columnName: "address",
-          personalInfoType: "주소",
-          recordCount: 98_000,
-          riskLevel: "낮음",
-          workStatus: "진행시작",
         },
       ],
     },
   ];
 };
 
-export default function DbPrivacyIssuesPage() {
-  const [issues, setIssues] = useState<TableIssue[]>(generateMockIssues());
+export default function FilePrivacyIssuesPage() {
+  const [issues, setIssues] = useState<FileServerIssue[]>(generateMockIssues());
   const [selected, setSelected] = useState<{
     issueId: string;
-    columnId: string;
+    fileId: string;
   } | null>(null);
 
   const stats = useMemo(() => {
-    let totalColumns = 0;
+    let totalFiles = 0;
     let highRisk = 0;
     let mediumRisk = 0;
     let lowRisk = 0;
+    let totalPersonalInfo = 0;
 
     issues.forEach((issue) => {
-      totalColumns += issue.columns.length;
-      issue.columns.forEach((col) => {
-        if (col.riskLevel === "높음") highRisk++;
-        else if (col.riskLevel === "중간") mediumRisk++;
-        else if (col.riskLevel === "낮음") lowRisk++;
+      totalFiles += issue.files.length;
+      issue.files.forEach((file) => {
+        totalPersonalInfo += file.personalInfoCount;
+        if (file.riskLevel === "높음") highRisk++;
+        else if (file.riskLevel === "중간") mediumRisk++;
+        else if (file.riskLevel === "낮음") lowRisk++;
       });
     });
 
     return {
-      totalColumns,
+      totalFiles,
       highRisk,
       mediumRisk,
       lowRisk,
-      totalPersonalInfo: 3630,
+      totalPersonalInfo,
     };
   }, [issues]);
 
@@ -190,32 +221,30 @@ export default function DbPrivacyIssuesPage() {
     return issues.find((i) => i.id === selected.issueId) ?? null;
   }, [issues, selected]);
 
-  const selectedColumn = useMemo(() => {
+  const selectedFile = useMemo(() => {
     if (!selected || !selectedIssue) return null;
-    return (
-      selectedIssue.columns.find((c) => c.id === selected.columnId) ?? null
-    );
+    return selectedIssue.files.find((f) => f.id === selected.fileId) ?? null;
   }, [selected, selectedIssue]);
 
-  const handleRowDetailClick = (issueId: string, columnId: string) => {
-    setSelected({ issueId, columnId });
+  const handleRowDetailClick = (issueId: string, fileId: string) => {
+    setSelected({ issueId, fileId });
   };
 
-  const handleWorkStatusClick = (issueId: string, columnId: string) => {
+  const handleWorkStatusClick = (issueId: string, fileId: string) => {
     setIssues((prev) =>
       prev.map((issue) => {
         if (issue.id !== issueId) return issue;
         return {
           ...issue,
-          columns: issue.columns.map((col) => {
-            if (col.id !== columnId) return col;
+          files: issue.files.map((file) => {
+            if (file.id !== fileId) return file;
             const next: WorkStatus =
-              col.workStatus === "진행시작"
+              file.workStatus === "진행시작"
                 ? "진행중"
-                : col.workStatus === "진행중"
+                : file.workStatus === "진행중"
                   ? "해결완료"
                   : "해결완료";
-            return { ...col, workStatus: next };
+            return { ...file, workStatus: next };
           }),
         };
       }),
@@ -238,18 +267,25 @@ export default function DbPrivacyIssuesPage() {
     }
   };
 
-  const getIssueColumns = (issue: TableIssue): TableColumn<IssueColumn>[] => [
+  const getFileColumns = (issue: FileServerIssue): TableColumn<FileIssue>[] => [
     {
-      id: "columnName",
-      label: "컬럼명",
+      id: "fileName",
+      label: "파일명",
       width: "1fr",
       align: "left",
       render: (value) => <span className="font-medium">{value as string}</span>,
     },
     {
+      id: "filePath",
+      label: "파일 경로",
+      width: "1.5fr",
+      align: "left",
+      render: (value) => <span>{value as string}</span>,
+    },
+    {
       id: "personalInfoType",
       label: "개인정보 유형",
-      width: "1fr",
+      width: "1.5fr",
       align: "left",
       render: (value) => (
         <span className="truncate block" title={value as string}>
@@ -258,9 +294,9 @@ export default function DbPrivacyIssuesPage() {
       ),
     },
     {
-      id: "recordCount",
-      label: "레코드 수",
-      width: "1fr",
+      id: "personalInfoCount",
+      label: "총 개인정보 수",
+      width: "0.7fr",
       align: "left",
       render: (value) => (
         <span className="tabular-nums">
@@ -271,7 +307,7 @@ export default function DbPrivacyIssuesPage() {
     {
       id: "riskLevel",
       label: "위험도",
-      width: "1fr",
+      width: "0.7fr",
       align: "left",
       render: (value) => {
         const riskLevel = value as RiskLevel;
@@ -338,8 +374,8 @@ export default function DbPrivacyIssuesPage() {
     <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
       <div className="grid grid-cols-5 gap-4 shrink-0">
         <StatCard
-          title="총 이슈 컬럼"
-          value={stats.totalColumns}
+          title="총 이슈 파일"
+          value={stats.totalFiles}
           icon={<AlertTriangle className="size-5" />}
           colorScheme="purple"
         />
@@ -372,22 +408,23 @@ export default function DbPrivacyIssuesPage() {
       {/* Only contents scroll; title stays fixed */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <h2 className="shrink-0 text-base font-semibold text-white px-1 pb-2">
-          테이블별 암호화 이슈
+          파일서버별 암호화 이슈
         </h2>
         <div className="flex-1 min-h-0 overflow-y-auto pr-0">
           <div className="flex flex-col gap-3 pb-2">
             {issues.map((issue) => (
               <TableSection
                 key={issue.id}
-                icon={<Database className="size-5" />}
-                title={issue.tableName}
-                meta={`${issue.dbConnection}`}
+                icon={<Folder className="size-5" />}
+                title={issue.serverName}
+                meta={issue.serverType}
                 badge={`${issue.issueCount}개 이슈`}
                 badgeVariant="plain"
               >
                 <Table
-                  columns={getIssueColumns(issue)}
-                  data={issue.columns}
+                  columns={getFileColumns(issue)}
+                  data={issue.files}
+                  scrollable={false}
                   className="border-0 rounded-t-none"
                 />
               </TableSection>
@@ -401,7 +438,7 @@ export default function DbPrivacyIssuesPage() {
           open={selected != null}
           onClose={handleCloseModal}
           issue={selectedIssue}
-          column={selectedColumn}
+          file={selectedFile}
         />
       )}
     </div>
