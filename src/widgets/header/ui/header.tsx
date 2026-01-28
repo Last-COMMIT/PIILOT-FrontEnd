@@ -13,8 +13,8 @@ interface HeaderProps {
 
 const pageTitles: Record<string, string> = {
   "/": "대시보드",
-  "/connections/db": "DB 서버 연결 관리",
-  "/connections/file": "파일 서버 연결 관리",
+  "/db-connection": "DB 서버 연결 관리",
+  "/file-connection": "파일 서버 연결 관리",
   "/privacy/db/list": "DB 개인정보 목록",
   "/privacy/db/issues": "DB 개인정보 이슈",
   "/privacy/file/list": "파일 개인정보 목록",
