@@ -3,15 +3,23 @@
 import { Filter } from "lucide-react";
 import { Input, Dropdown, Button } from "@/shared/ui";
 
+interface Option {
+  value: string;
+  label: string;
+}
+
 interface FilterSectionProps {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   onSearch: () => void;
   onReset: () => void;
+  connectionOptions: Option[];
   selectedConnection: string;
   onConnectionChange: (value: string) => void;
+  tableOptions: Option[];
   selectedTable: string;
   onTableChange: (value: string) => void;
+  typeOptions: Option[];
   selectedType: string;
   onTypeChange: (value: string) => void;
   selectedEncryption: string;
@@ -19,27 +27,6 @@ interface FilterSectionProps {
   selectedRiskLevel: string;
   onRiskLevelChange: (value: string) => void;
 }
-
-const CONNECTION_OPTIONS = [
-  { value: "all", label: "모든 커넥션" },
-  { value: "postgresql", label: "운영 DB (PostgreSQL)" },
-  { value: "oracle", label: "레거시 시스템 (Oracle)" },
-  { value: "mysql", label: "고객 DB (MySQL)" },
-];
-
-const TABLE_OPTIONS = [
-  { value: "all", label: "모든 테이블" },
-  { value: "users", label: "users" },
-  { value: "payments", label: "payments" },
-  { value: "customer_backup", label: "customer_backup" },
-];
-
-const TYPE_OPTIONS = [
-  { value: "all", label: "모든 유형" },
-  { value: "이름", label: "이름" },
-  { value: "전화번호", label: "전화번호" },
-  { value: "주민등록번호", label: "주민등록번호" },
-];
 
 const ENCRYPTION_OPTIONS = [
   { value: "all", label: "암호화 여부" },
@@ -59,10 +46,13 @@ export default function FilterSection({
   onSearchQueryChange,
   onSearch,
   onReset,
+  connectionOptions,
   selectedConnection,
   onConnectionChange,
+  tableOptions,
   selectedTable,
   onTableChange,
+  typeOptions,
   selectedType,
   onTypeChange,
   selectedEncryption,
@@ -107,7 +97,7 @@ export default function FilterSection({
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <Dropdown
-              options={CONNECTION_OPTIONS}
+              options={connectionOptions}
               value={selectedConnection}
               onChange={onConnectionChange}
               colorScheme="main"
@@ -115,7 +105,7 @@ export default function FilterSection({
           </div>
           <div className="flex-1 min-w-[200px]">
             <Dropdown
-              options={TABLE_OPTIONS}
+              options={tableOptions}
               value={selectedTable}
               onChange={onTableChange}
               colorScheme="main"
@@ -123,7 +113,7 @@ export default function FilterSection({
           </div>
           <div className="flex-1 min-w-[200px]">
             <Dropdown
-              options={TYPE_OPTIONS}
+              options={typeOptions}
               value={selectedType}
               onChange={onTypeChange}
               colorScheme="main"

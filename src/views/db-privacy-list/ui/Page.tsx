@@ -68,6 +68,36 @@ export default function DbPrivacyListPage() {
   const [selectedEncryption, setSelectedEncryption] = useState("all");
   const [selectedRiskLevel, setSelectedRiskLevel] = useState("all");
 
+  const connectionOptions = useMemo(() => {
+    const unique = Array.from(
+      new Set(privacyItems.map((i) => i.dbConnection).filter(Boolean)),
+    );
+    return [
+      { value: "all", label: "모든 커넥션" },
+      ...unique.map((v) => ({ value: v, label: v })),
+    ];
+  }, [privacyItems]);
+
+  const tableOptions = useMemo(() => {
+    const unique = Array.from(
+      new Set(privacyItems.map((i) => i.table).filter(Boolean)),
+    );
+    return [
+      { value: "all", label: "모든 테이블" },
+      ...unique.map((v) => ({ value: v, label: v })),
+    ];
+  }, [privacyItems]);
+
+  const typeOptions = useMemo(() => {
+    const unique = Array.from(
+      new Set(privacyItems.map((i) => i.type).filter(Boolean)),
+    );
+    return [
+      { value: "all", label: "모든 유형" },
+      ...unique.map((v) => ({ value: v, label: v })),
+    ];
+  }, [privacyItems]);
+
   const filteredItems = useMemo(() => {
     return privacyItems.filter((item) => {
       if (appliedSearchQuery) {
@@ -80,16 +110,8 @@ export default function DbPrivacyListPage() {
           return false;
         }
       }
-      if (selectedConnection !== "all") {
-        const connectionMap: Record<string, string> = {
-          postgresql: "PostgreSQL",
-          oracle: "Oracle",
-          mysql: "MySQL",
-        };
-        const target = connectionMap[selectedConnection];
-        if (target && !item.dbConnection.includes(target)) {
-          return false;
-        }
+      if (selectedConnection !== "all" && item.dbConnection !== selectedConnection) {
+        return false;
       }
       if (selectedTable !== "all" && item.table !== selectedTable) {
         return false;
@@ -114,7 +136,15 @@ export default function DbPrivacyListPage() {
       }
       return true;
     });
-  }, [privacyItems, appliedSearchQuery, selectedConnection, selectedTable, selectedType, selectedEncryption, selectedRiskLevel]);
+  }, [
+    privacyItems,
+    appliedSearchQuery,
+    selectedConnection,
+    selectedTable,
+    selectedType,
+    selectedEncryption,
+    selectedRiskLevel,
+  ]);
 
   const totalItems = filteredItems.length;
   const highRiskItems = filteredItems.filter((item) => item.riskLevel === "높음")
@@ -122,9 +152,8 @@ export default function DbPrivacyListPage() {
   const encryptedItems = filteredItems.filter(
     (item) => item.encryption === "양호",
   ).length;
-  const encryptionRate = Math.round(
-    (encryptedItems / totalItems) * 100,
-  );
+  const encryptionRate =
+    totalItems === 0 ? 0 : Math.round((encryptedItems / totalItems) * 100);
   const totalRecords = 626500;
 
 
@@ -250,10 +279,13 @@ export default function DbPrivacyListPage() {
           onSearchQueryChange={setSearchQuery}
           onSearch={handleSearch}
           onReset={handleReset}
+          connectionOptions={connectionOptions}
           selectedConnection={selectedConnection}
           onConnectionChange={setSelectedConnection}
+          tableOptions={tableOptions}
           selectedTable={selectedTable}
           onTableChange={setSelectedTable}
+          typeOptions={typeOptions}
           selectedType={selectedType}
           onTypeChange={setSelectedType}
           selectedEncryption={selectedEncryption}
