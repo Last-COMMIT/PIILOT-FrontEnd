@@ -26,6 +26,7 @@ export interface TableProps<T = Record<string, unknown>> extends Omit<
   selectedRowIndex?: number;
   onRowClick?: (row: T, index: number) => void;
   rowSelectionEnabled?: boolean;
+  onBodyScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 const alignClasses: Record<TableColumnAlign, string> = {
@@ -57,6 +58,7 @@ function TableInner<T extends Record<string, unknown>>(
     selectedRowIndex,
     onRowClick,
     rowSelectionEnabled = true,
+    onBodyScroll,
     className,
     style,
     ...props
@@ -76,7 +78,7 @@ function TableInner<T extends Record<string, unknown>>(
     <div
       ref={ref}
       className={cn(
-        "flex min-w-0 max-w-full flex-col overflow-hidden rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] text-sm",
+        "flex min-w-0 max-w-full flex-col overflow-hidden rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] text-sm h-full",
         width == null && "w-full",
         className,
       )}
@@ -92,48 +94,58 @@ function TableInner<T extends Record<string, unknown>>(
           scrollable && "overflow-x-auto",
         )}
       >
-        <div className={cn("flex min-w-0 flex-col", scrollable && "min-w-max")}>
+        <div className={cn("flex min-w-0 flex-col h-full", scrollable && "min-w-max")}>
           <div
             role="table"
             aria-label="데이터 테이블"
-            className={cn("flex min-w-0 flex-col", scrollable && "min-w-max")}
+            className={cn(
+              "flex min-w-0 flex-col h-full",
+              scrollable && "min-w-max",
+            )}
           >
-            <div role="rowgroup" className="shrink-0">
-              <div
-                className="grid shrink-0 border-b border-[var(--color-text-light-gray)] bg-[var(--color-sidebar-bg)] font-medium text-white"
-                style={{ gridTemplateColumns: template }}
-                role="row"
-              >
-                {columns.map((col) => (
-                  <div
-                    key={col.id}
-                    className={cn(
-                      "flex min-w-0 items-center overflow-hidden px-4 py-3",
-                      alignClasses[col.align ?? "left"],
-                    )}
-                    role="columnheader"
-                  >
-                    <span className="w-full min-w-0 truncate">{col.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
             <div
               className={cn(
-                "min-h-0 pr-0.5 pl-0",
-                maxBodyHeight != null &&
-                  "flex-1 overflow-y-auto [scrollbar-gutter:stable]",
+                "flex flex-col",
+                maxBodyHeight != null && "h-full overflow-hidden",
               )}
-              style={
-                maxBodyHeight != null ? { maxHeight: maxBodyHeight } : undefined
-              }
-              role="rowgroup"
-              tabIndex={maxBodyHeight != null ? 0 : undefined}
             >
-              {data.map((row, rowIndex) => {
-                const selectable = rowSelectionEnabled && onRowClick != null;
-                const isActive = selectable && selectedRowIndex === rowIndex;
-                return (
+              <div role="rowgroup" className="shrink-0">
+                <div
+                  className="grid shrink-0 border-b border-[var(--color-text-light-gray)] bg-[var(--color-sidebar-bg)] font-medium text-white"
+                  style={{ gridTemplateColumns: template }}
+                  role="row"
+                >
+                  {columns.map((col) => (
+                    <div
+                      key={col.id}
+                      className={cn(
+                        "flex min-w-0 items-center overflow-hidden px-4 py-3",
+                        alignClasses[col.align ?? "left"],
+                      )}
+                      role="columnheader"
+                    >
+                      <span className="w-full min-w-0 truncate">{col.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div
+                role="rowgroup"
+                className={cn(
+                  "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]",
+                )}
+                style={
+                  maxBodyHeight != null && maxBodyHeight !== "100%"
+                    ? { maxHeight: maxBodyHeight }
+                    : undefined
+                }
+                tabIndex={maxBodyHeight != null ? 0 : undefined}
+                onScroll={onBodyScroll}
+              >
+                {data.map((row, rowIndex) => {
+                  const selectable = rowSelectionEnabled && onRowClick != null;
+                  const isActive = selectable && selectedRowIndex === rowIndex;
+                  return (
                   <div
                     key={rowIndex}
                     className={cn(
@@ -169,25 +181,21 @@ function TableInner<T extends Record<string, unknown>>(
                         <div
                           key={col.id}
                           className={cn(
-                            "flex min-w-0 items-center overflow-hidden px-4 py-3",
+                            "flex min-w-0 items-center overflow-visible px-4 py-3",
                             alignClasses[col.align ?? "left"],
                           )}
                           role="cell"
                         >
-                          <span
-                            className="w-full min-w-0 truncate"
-                            title={
-                              typeof content === "string" ? content : undefined
-                            }
-                          >
+                          <div className="w-full min-w-0">
                             {content}
-                          </span>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
