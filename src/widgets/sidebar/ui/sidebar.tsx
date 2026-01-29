@@ -17,6 +17,8 @@ import {
   ChevronRight,
   ShieldCheck,
 } from "lucide-react";
+import { Footer } from "@/widgets/footer";
+import { TermsModal, type ModalKind } from "@/views/auth/ui/TermsModal";
 
 interface MenuItem {
   label: string;
@@ -90,6 +92,9 @@ export function Sidebar({ pathname: pathnameProp }: SidebarProps = {}) {
   const pathname =
     pathnameProp !== undefined ? pathnameProp : (fromRouter ?? "");
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
+  const [termsModalKind, setTermsModalKind] = React.useState<ModalKind | null>(
+    null,
+  );
 
   const toggleMenu = (menuLabel: string) => {
     setOpenMenus((prev) => ({
@@ -127,15 +132,15 @@ export function Sidebar({ pathname: pathnameProp }: SidebarProps = {}) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen",
+        "fixed left-0 top-0 flex h-screen flex-col",
         "w-[var(--sidebar-width)]",
         "bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)]",
-        "overflow-y-auto z-10",
+        "z-10",
       )}
     >
       <div
         className={cn(
-          "h-[76px] flex items-center gap-3 px-4",
+          "h-[76px] shrink-0 flex items-center gap-3 px-4",
           "border-b border-[var(--color-sidebar-border)]",
         )}
       >
@@ -163,7 +168,7 @@ export function Sidebar({ pathname: pathnameProp }: SidebarProps = {}) {
         </div>
       </div>
 
-      <nav className="p-4 space-y-1">
+      <nav className="min-h-0 flex-1 overflow-y-auto p-4 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item);
@@ -238,6 +243,15 @@ export function Sidebar({ pathname: pathnameProp }: SidebarProps = {}) {
           );
         })}
       </nav>
+
+      <Footer
+        variant="sidebar"
+        onOpenTerms={(kind) => setTermsModalKind(kind)}
+      />
+      <TermsModal
+        kind={termsModalKind}
+        onClose={() => setTermsModalKind(null)}
+      />
     </aside>
   );
 }

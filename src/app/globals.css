@@ -98,6 +98,8 @@
   --color-option-selected-text: var(--color-mint-text);
 
   --color-bg-main: var(--color-bg-page);
+  /* 푸터: 사이드바 배경색 50% 투명도 */
+  --color-footer-bg: rgb(14 23 42 / 0.4);
   --color-content-border: var(--color-border-default);
   --color-text-light-gray: var(--color-text-muted);
   --color-text-dark-gray: var(--color-text-muted-strong);
