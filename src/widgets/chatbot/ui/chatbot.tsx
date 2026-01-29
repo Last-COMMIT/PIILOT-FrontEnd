@@ -17,8 +17,19 @@ export function Chatbot() {
   >([{ role: "ai", text: INITIAL_MESSAGE }]);
   const [input, setInput] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const responseTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+
+  React.useEffect(() => {
+    return () => {
+      if (responseTimeoutRef.current !== null) {
+        clearTimeout(responseTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,10 +41,15 @@ export function Chatbot() {
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    if (responseTimeoutRef.current !== null) {
+      clearTimeout(responseTimeoutRef.current);
+      responseTimeoutRef.current = null;
+    }
     setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
     setInput("");
     // TODO: 실제 AI API 연동 시 여기서 요청 후 응답 메시지 추가
-    setTimeout(() => {
+    responseTimeoutRef.current = setTimeout(() => {
+      responseTimeoutRef.current = null;
       setMessages((prev) => [
         ...prev,
         {
