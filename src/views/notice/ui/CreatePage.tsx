@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@/shared/ui";
 import { createNotice } from "../lib/storage";
@@ -16,10 +16,7 @@ function formatDate(date: Date) {
 export default function NoticeCreatePage() {
   const router = useRouter();
   const isAdmin = useIsAdmin();
-  const [createdAt, setCreatedAt] = useState("");
-  useEffect(() => {
-    setCreatedAt(formatDate(new Date()));
-  }, []);
+  const [createdAt] = useState(() => formatDate(new Date()));
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");

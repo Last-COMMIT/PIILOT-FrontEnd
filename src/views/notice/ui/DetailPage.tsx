@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/shared/ui";
-import { deleteNotice, getNoticeById, type NoticeItem } from "../lib/storage";
+import { deleteNotice, getNoticeById } from "../lib/storage";
 import { useIsAdmin } from "../lib/useIsAdmin";
 
 interface NoticeDetailPageProps {
@@ -15,24 +15,10 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
   const router = useRouter();
   const isAdmin = useIsAdmin();
 
-  const [notice, setNotice] = useState<NoticeItem | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const found = getNoticeById(id);
-    setNotice(found);
-    setLoaded(true);
+  const notice = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return getNoticeById(id);
   }, [id]);
-
-  if (!loaded) {
-    return (
-      <div className="h-full min-h-0 overflow-hidden flex flex-col p-6">
-        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] p-6 text-sm text-[var(--color-text-light-gray)]">
-          불러오는 중...
-        </div>
-      </div>
-    );
-  }
 
   if (!notice) {
     return (
@@ -84,13 +70,15 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
                 목록
               </Button>
             </Link>
-            <Button
-              colorScheme="destructive"
-              appearance="outline"
-              onClick={handleDelete}
-            >
-              삭제
-            </Button>
+            {isAdmin && (
+              <Button
+                colorScheme="destructive"
+                appearance="outline"
+                onClick={handleDelete}
+              >
+                삭제
+              </Button>
+            )}
           </div>
         </div>
       </div>
