@@ -25,6 +25,24 @@ const pageTitles: Record<string, string> = {
   "/settings": "설정",
 };
 
+function resolvePageTitle(pathname: string | null): string {
+  if (!pathname) return "대시보드";
+  if (pageTitles[pathname]) return pageTitles[pathname];
+
+  // dynamic routes / nested paths
+  const prefixes: Array<[string, string]> = [
+    ["/notice", "공지사항"],
+    ["/law/search", "법령/내규 검색"],
+    ["/privacy/file", "파일 서버 개인정보 관리"],
+    ["/privacy/db", "DB 서버 개인정보 관리"],
+    ["/connection", "연결관리"],
+  ];
+  for (const [prefix, title] of prefixes) {
+    if (pathname.startsWith(prefix)) return title;
+  }
+  return "대시보드";
+}
+
 export function Header({
   className,
   title,
@@ -35,7 +53,7 @@ export function Header({
     pathnameProp !== undefined ? pathnameProp : (fromRouter ?? null);
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
 
-  const pageTitle = title || (pathname && pageTitles[pathname]) || "대시보드";
+  const pageTitle = title || resolvePageTitle(pathname);
 
   const handleNotificationClick = () => {
     setIsNotificationOpen((prev) => !prev);
