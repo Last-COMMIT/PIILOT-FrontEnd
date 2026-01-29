@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/shared/ui";
 import { deleteNotice, getNoticeById } from "../lib/storage";
@@ -15,10 +15,22 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
   const router = useRouter();
   const isAdmin = useIsAdmin();
 
+  const [hydrated, setHydrated] = useState(false);
+  // 하이드레이션 가드를 위해 비동기로 상태 업데이트
+  useEffect(() => {
+    setTimeout(() => {
+      setHydrated(true);
+    }, 0);
+  }, []);
+
   const notice = useMemo(() => {
-    if (typeof window === "undefined") return null;
+    if (!hydrated) return null;
     return getNoticeById(id);
-  }, [id]);
+  }, [hydrated, id]);
+
+  if (!hydrated) {
+    return null;
+  }
 
   if (!notice) {
     return (
@@ -40,8 +52,13 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
   const handleDelete = () => {
     const ok = window.confirm("공지사항을 삭제할까요?");
     if (!ok) return;
-    deleteNotice(notice.id);
-    router.replace("/notice");
+    try {
+      deleteNotice(notice.id);
+      router.replace("/notice");
+    } catch (error) {
+      console.error("Notice delete failed:", error);
+      alert("공지사항 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   return (
