@@ -130,7 +130,7 @@ export default function LawSearchPage() {
     setIsSearching(false);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleSearch();
     }
@@ -160,7 +160,7 @@ export default function LawSearchPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="AI 검색으로 필요한 정보를 빠르게 찾아보세요."
             colorScheme="main"
             className="pl-11 bg-[var(--color-sidebar-bg)] border-2"
