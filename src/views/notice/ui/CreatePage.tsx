@@ -54,7 +54,7 @@ export default function NoticeCreatePage() {
                 className="text-white text-lg font-semibold placeholder:text-[var(--color-text-light-gray)] px-4 py-4 h-10"
               />
               <div className="flex items-center gap-4 text-xs text-[var(--color-text-light-gray)]">
-                <span>작성자: 관리자</span>
+                <span>작성자: {isAdmin ? "관리자" : "사용자"}</span>
                 <span>일자: {createdAt}</span>
               </div>
             </div>

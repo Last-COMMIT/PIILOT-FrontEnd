@@ -103,7 +103,13 @@ export function getNotices(): NoticeItem[] {
 
 export function saveNotices(items: NoticeItem[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch (error) {
+    // 쿼터 초과/프라이빗 모드 등에서 localStorage 저장 실패 시 처리
+    console.error("공지사항 저장 실패:", error);
+    // 필요 시 사용자 알림 처리
+  }
 }
 
 export function getNoticeById(id: string): NoticeItem | null {
