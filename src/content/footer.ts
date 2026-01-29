@@ -15,5 +15,5 @@ export const FOOTER = {
   contactHours: "(상담시간: 09시~18시)",
   copyright: "Copyright@ 2026 PIILOT Corp. All right reserved",
   copyrightLine1: "Copyright@ 2026 PIILOT Corp.",
-  copyrightLine2: "All right reserved",
+  copyrightLine2: "All rights reserved",
 } as const;
