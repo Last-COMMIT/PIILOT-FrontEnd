@@ -60,7 +60,7 @@ const menuItems: MenuItem[] = [
   },
   {
     label: "법령/내규 검색",
-    href: "/search",
+    href: "/law/search",
     icon: Search,
   },
   {
