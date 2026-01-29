@@ -12,6 +12,7 @@ import {
   Search,
   Megaphone,
   Settings,
+  LogOut,
   ChevronDown,
   ChevronRight,
   ShieldCheck,
@@ -72,6 +73,11 @@ const menuItems: MenuItem[] = [
     label: "설정",
     href: "/settings",
     icon: Settings,
+  },
+  {
+    label: "로그아웃",
+    href: "/logout",
+    icon: LogOut,
   },
 ];
 
