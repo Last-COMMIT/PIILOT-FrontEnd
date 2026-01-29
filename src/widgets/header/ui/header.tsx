@@ -13,21 +13,26 @@ interface HeaderProps {
 
 const pageTitles: Record<string, string> = {
   "/": "대시보드",
-  "/db-connection": "DB 서버 연결 관리",
-  "/file-connection": "파일 서버 연결 관리",
+  "/connection/db": "DB 서버 연결 관리",
+  "/connection/file": "파일 서버 연결 관리",
   "/privacy/db/list": "DB 개인정보 목록",
   "/privacy/db/issues": "DB 개인정보 이슈",
   "/privacy/file/list": "파일 개인정보 목록",
   "/privacy/file/issues": "파일정보 이슈",
   "/privacy/file/masking": "AI 자동 마스킹",
-  "/search": "법령/내규 검색",
+  "/law/search": "법령/내규 검색",
   "/notice": "공지사항",
   "/settings": "설정",
 };
 
-export function Header({ className, title, pathname: pathnameProp }: HeaderProps) {
+export function Header({
+  className,
+  title,
+  pathname: pathnameProp,
+}: HeaderProps) {
   const fromRouter = usePathname();
-  const pathname = pathnameProp !== undefined ? pathnameProp : fromRouter ?? null;
+  const pathname =
+    pathnameProp !== undefined ? pathnameProp : (fromRouter ?? null);
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
 
   const pageTitle = title || (pathname && pageTitles[pathname]) || "대시보드";
