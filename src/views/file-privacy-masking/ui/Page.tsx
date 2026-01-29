@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   FileImage,
   Shield,
@@ -133,6 +133,7 @@ export default function FilePrivacyMaskingPage() {
   const [currentMaskedIndex, setCurrentMaskedIndex] = useState(0);
   const [isConverting, setIsConverting] = useState(false);
   const [maskedFileIds, setMaskedFileIds] = useState<Set<string>>(new Set());
+  const conversionTokenRef = useRef(0);
 
   const filteredFiles = useMemo(() => {
     return files.filter((file) => {
@@ -193,6 +194,22 @@ export default function FilePrivacyMaskingPage() {
       .filter((f): f is FileItem => f !== undefined);
   }, [maskedFileIds, files]);
 
+  useEffect(() => {
+    setCurrentOriginalIndex((prev) =>
+      selectedFilesArray.length === 0
+        ? 0
+        : Math.min(prev, selectedFilesArray.length - 1),
+    );
+  }, [selectedFilesArray.length]);
+
+  useEffect(() => {
+    setCurrentMaskedIndex((prev) =>
+      maskedFilesArray.length === 0
+        ? 0
+        : Math.min(prev, maskedFilesArray.length - 1),
+    );
+  }, [maskedFilesArray.length]);
+
   const handleFileToggle = (fileId: string) => {
     setSelectedFileIds((prev) => {
       const newSet = new Set(prev);
@@ -213,6 +230,7 @@ export default function FilePrivacyMaskingPage() {
       return;
     }
 
+    const token = ++conversionTokenRef.current;
     setIsConverting(true);
     setMaskedFileIds(new Set());
 
@@ -221,6 +239,7 @@ export default function FilePrivacyMaskingPage() {
     for (let i = 0; i < selectedIdsArray.length; i++) {
       // 각 파일 변환에 2초씩 소요되는 것으로 시뮬레이션
       await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (conversionTokenRef.current !== token) return;
       setMaskedFileIds((prev) => {
         const newSet = new Set(prev);
         newSet.add(selectedIdsArray[i]);
@@ -228,7 +247,9 @@ export default function FilePrivacyMaskingPage() {
       });
     }
 
-    setIsConverting(false);
+    if (conversionTokenRef.current === token) {
+      setIsConverting(false);
+    }
   };
 
   const handleSave = () => {
@@ -241,6 +262,7 @@ export default function FilePrivacyMaskingPage() {
   };
 
   const handleCancel = () => {
+    conversionTokenRef.current += 1;
     setSelectedFileIds(new Set());
     setMaskedFileIds(new Set());
     setCurrentOriginalIndex(0);
@@ -254,6 +276,7 @@ export default function FilePrivacyMaskingPage() {
   };
 
   const handleReset = () => {
+    conversionTokenRef.current += 1;
     setSelectedFileIds(new Set());
     setSearchQuery("");
     setAppliedSearchQuery("");
@@ -545,7 +568,10 @@ export default function FilePrivacyMaskingPage() {
               {currentOriginalFile ? (
                 <>
                   {/* eslint-disable-next-line */}
-                  <Image className="size-20 text-[var(--color-text-light-gray)]" aria-hidden="true" />
+                  <Image
+                    className="size-20 text-[var(--color-text-light-gray)]"
+                    aria-hidden="true"
+                  />
                   <p className="text-sm text-[var(--color-text-light-gray)]">
                     원본 이미지 미리보기
                   </p>
@@ -601,29 +627,25 @@ export default function FilePrivacyMaskingPage() {
               {isConverting ? (
                 <>
                   <div className="relative w-full h-32 flex items-center justify-center overflow-hidden">
-                    <style
-                      dangerouslySetInnerHTML={{
-                        __html: `
-                        @keyframes fly-straight {
-                          0% {
-                            transform: translateX(-100%) rotate(30deg);
-                            opacity: 0;
-                          }
-                          50% {
-                            transform: translateX(0%) rotate(30deg);
-                            opacity: 1;
-                          }
-                          100% {
-                            transform: translateX(120%) rotate(30deg);
-                            opacity: 0;
-                          }
+                    <style>{`
+                      @keyframes fly-straight {
+                        0% {
+                          transform: translateX(-100%) rotate(30deg);
+                          opacity: 0;
                         }
-                        .flying-plane {
-                          animation: fly-straight 2s linear infinite;
+                        50% {
+                          transform: translateX(0%) rotate(30deg);
+                          opacity: 1;
                         }
-                      `,
-                      }}
-                    />
+                        100% {
+                          transform: translateX(120%) rotate(30deg);
+                          opacity: 0;
+                        }
+                      }
+                      .flying-plane {
+                        animation: fly-straight 2s linear infinite;
+                      }
+                    `}</style>
                     <div className="absolute inset-0 flex items-center justify-center">
                       {/* 비행기 애니메이션 - 왼쪽에서 오른쪽으로 일직선 이동 */}
                       <Plane className="size-16 text-[var(--color-main-bg)] flying-plane" />
