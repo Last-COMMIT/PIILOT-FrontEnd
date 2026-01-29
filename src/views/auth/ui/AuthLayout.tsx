@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { Footer } from "@/widgets/footer";
+import { TermsModal, type ModalKind } from "./TermsModal";
 
 export interface AuthLayoutProps {
   title: string;
@@ -8,10 +10,15 @@ export interface AuthLayoutProps {
 }
 
 export function AuthLayout({ title, children }: AuthLayoutProps) {
+  const [termsModalKind, setTermsModalKind] = React.useState<ModalKind | null>(
+    null,
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[var(--color-bg-main)]">
-      <div className="relative h-full w-full px-6 py-10">
-        <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-10">
+      {/* 전체화면 세로 가운데: 텍스트 + 로그인 폼 */}
+      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-6 py-10">
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-10">
           {/* 좌측 텍스트 영역 */}
           <div className="hidden md:flex min-w-0 flex-1 flex-col gap-4">
             <div className="text-white">
@@ -38,6 +45,18 @@ export function AuthLayout({ title, children }: AuthLayoutProps) {
           </div>
         </div>
       </div>
+
+      {/* 푸터: 하단 고정 */}
+      <div className="absolute bottom-0 left-0 right-0">
+        <Footer
+          variant="auth"
+          onOpenTerms={(kind) => setTermsModalKind(kind)}
+        />
+      </div>
+      <TermsModal
+        kind={termsModalKind}
+        onClose={() => setTermsModalKind(null)}
+      />
     </div>
   );
 }

@@ -23,6 +23,8 @@ const pageTitles: Record<string, string> = {
   "/law/search": "법령/내규 검색",
   "/notice": "공지사항",
   "/settings": "설정",
+  "/terms": "서비스 이용약관",
+  "/privacy-policy": "개인정보 처리방침",
 };
 
 function resolvePageTitle(pathname: string | null): string {
