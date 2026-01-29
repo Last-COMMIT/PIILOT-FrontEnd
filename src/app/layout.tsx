@@ -3,6 +3,7 @@ import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/widgets/header";
 import { Sidebar } from "@/widgets/sidebar";
+import { Chatbot } from "@/widgets/chatbot";
 
 const notoSans = Noto_Sans_KR({
   variable: "--font-noto-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
               {children}
             </main>
           </div>
+          <Chatbot />
         </div>
       </body>
     </html>
