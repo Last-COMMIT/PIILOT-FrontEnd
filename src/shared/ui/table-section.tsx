@@ -4,7 +4,11 @@ import * as React from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export type TableSectionBadgeVariant = "error" | "warning" | "success" | "plain";
+export type TableSectionBadgeVariant =
+  | "error"
+  | "warning"
+  | "success"
+  | "plain";
 
 const badgeVariantClasses: Record<TableSectionBadgeVariant, string> = {
   error: "text-[var(--color-coral-text)] bg-[var(--color-coral-bg)]",
@@ -20,6 +24,8 @@ export interface TableSectionProps extends Omit<
   icon?: React.ReactNode;
   title: string;
   meta?: string;
+  /** 헤더 오른쪽에 배치할 액션(예: 버튼). badge보다 우선 표시됩니다. */
+  headerAction?: React.ReactNode;
   badge?: React.ReactNode;
   badgeVariant?: TableSectionBadgeVariant;
   children: React.ReactNode;
@@ -32,6 +38,7 @@ const TableSection = React.forwardRef<HTMLDivElement, TableSectionProps>(
       icon,
       title,
       meta,
+      headerAction,
       badge,
       badgeVariant = "error",
       children,
@@ -41,6 +48,20 @@ const TableSection = React.forwardRef<HTMLDivElement, TableSectionProps>(
     },
     ref,
   ) => {
+    const rightContent =
+      headerAction ??
+      (badge != null ? (
+        <span
+          className={cn(
+            "shrink-0 self-center text-sm font-semibold",
+            badgeVariant !== "plain" && "rounded-md px-2.5 py-1.5 font-medium",
+            badgeVariantClasses[badgeVariant],
+          )}
+        >
+          {badge}
+        </span>
+      ) : null);
+
     return (
       <div
         ref={ref}
@@ -71,17 +92,7 @@ const TableSection = React.forwardRef<HTMLDivElement, TableSectionProps>(
               ) : null}
             </div>
           </div>
-          {badge != null ? (
-            <span
-              className={cn(
-                "shrink-0 self-center text-sm font-semibold",
-                badgeVariant !== "plain" && "rounded-md px-2.5 py-1.5 font-medium",
-                badgeVariantClasses[badgeVariant],
-              )}
-            >
-              {badge}
-            </span>
-          ) : null}
+          {rightContent}
         </div>
         <div className="min-w-0 flex-1">{children}</div>
         {footer != null ? (

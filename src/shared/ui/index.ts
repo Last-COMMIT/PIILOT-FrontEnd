@@ -26,3 +26,5 @@ export type {
   TableSectionBadgeVariant,
   TableSectionProps,
 } from "./table-section";
+export { Toggle } from "./toggle";
+export type { ToggleProps } from "./toggle";
