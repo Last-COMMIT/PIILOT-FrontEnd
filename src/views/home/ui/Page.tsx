@@ -1,6 +1,12 @@
+"use client";
+
 import { Database, FileText, TriangleAlert, Columns } from "lucide-react";
 import { StatCard, IssueCard, LineChart, DoughnutChart } from "@/shared/ui";
-import type { LineChartData, DoughnutChartData, IssueCardRiskLevel } from "@/shared/ui";
+import type {
+  LineChartData,
+  DoughnutChartData,
+  IssueCardRiskLevel,
+} from "@/shared/ui";
 
 interface IssueData {
   id: string;
