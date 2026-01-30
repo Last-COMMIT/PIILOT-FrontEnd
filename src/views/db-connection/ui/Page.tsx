@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Database, CheckCircle2, Table, Columns } from "lucide-react";
 import {
   StatCard,
@@ -15,35 +16,19 @@ import type {
   ConnectionDetailItem,
   ConnectionActionItem,
 } from "@/shared/ui";
-
-interface ConnectionData {
-  id: string;
-  title: string;
-  dbType: ConnectionDbType;
-  status: string;
-  statusVariant: "success" | "warning" | "error";
-  host: string;
-  port: string;
-  databaseName: string;
-  username: string;
-  password: string;
-  managerName: string;
-  managerEmail: string;
-  tableCount: number;
-  columnCount: number;
-}
-
-interface ConnectionFormData {
-  title: string;
-  dbType: ConnectionDbType;
-  host: string;
-  port: string;
-  databaseName: string;
-  username: string;
-  password: string;
-  managerName: string;
-  managerEmail: string;
-}
+import {
+  getDbConnectionList,
+  getDbConnectionStats,
+  getDbConnectionDetail,
+  createDbConnection,
+  updateDbConnection,
+  deleteDbConnection,
+} from "@/features/db-connection";
+import type { DbmsTypeId } from "@/features/db-connection";
+import type {
+  DbConnectionListItem,
+  DbConnectionDetailItem,
+} from "@/features/db-connection";
 
 const DB_TYPE_OPTIONS = [
   {
@@ -84,215 +69,361 @@ const DB_TYPE_OPTIONS = [
   },
 ];
 
-export default function DbConnectionPage() {
-  const dbTypes: ConnectionDbType[] = ["postgresql", "oracle", "mysql"];
-  const statusVariants: Array<"success" | "warning" | "error"> = [
-    "success",
-    "success",
-    "success",
-    "warning",
-  ];
-  const statusLabels = ["연결됨", "연결됨", "연결됨", "연결 대기"];
-
-  const generateConnections = (): ConnectionData[] => {
-    const connections: ConnectionData[] = [];
-    for (let i = 1; i <= 12; i++) {
-      const dbType = dbTypes[(i - 1) % dbTypes.length];
-      const statusVariant = statusVariants[(i - 1) % statusVariants.length];
-      const status = statusLabels[(i - 1) % statusLabels.length];
-
-      connections.push({
-        id: i.toString(),
-        title: `Connection ${i}${i === 1 ? " - Legacy Project" : i === 2 ? " - LASTCOMMIT" : i === 3 ? " - AivleGood Co" : ""}`,
-        dbType,
-        status,
-        statusVariant,
-        host: `192.168.1.${100 + (i - 1)}`,
-        port: dbType === "postgresql" ? "5432" : "3306",
-        databaseName: `DB_${i}${dbType === "postgresql" ? "_PG" : dbType === "oracle" ? "_ORA" : "_MY"}`,
-        username: i % 3 === 0 ? "admin" : i % 3 === 1 ? "user" : "root",
-        password: "******",
-        managerName: `Manager ${i}`,
-        managerEmail: `manager${i}@example.com`,
-        tableCount: 100 * i + ((i * 17) % 500),
-        columnCount: 50 * i + ((i * 23) % 1000),
-      });
-    }
-    return connections;
+/** API dbmsTypeName → UI ConnectionDbType */
+function dbmsTypeNameToDbType(name: string): ConnectionDbType {
+  const map: Record<string, ConnectionDbType> = {
+    MySQL: "mysql",
+    PostgreSQL: "postgresql",
+    Oracle: "oracle",
   };
+  return map[name] ?? "postgresql";
+}
 
-  const [connections, setConnections] = useState<ConnectionData[]>(
-    generateConnections(),
-  );
+/** UI dbType → API dbmsTypeId (1: MySQL, 2: PostgreSQL, 3: Oracle) */
+function dbTypeToId(dbType: ConnectionDbType): DbmsTypeId {
+  const map: Record<ConnectionDbType, DbmsTypeId> = {
+    mysql: 1,
+    postgresql: 2,
+    oracle: 3,
+  };
+  return map[dbType];
+}
+
+/** API status → UI statusVariant */
+function statusToVariant(status: string): "success" | "warning" | "error" {
+  if (status === "CONNECTED") return "success";
+  if (status === "DISCONNECTED") return "warning";
+  return "warning";
+}
+
+/** API status → 한글 라벨 */
+function statusToLabel(status: string): string {
+  if (status === "CONNECTED") return "연결됨";
+  if (status === "DISCONNECTED") return "연결 끊김";
+  return status;
+}
+
+/** 목록 한 건에서 host 문자열 분리 (예: "192.168.1.100:5432") */
+function parseHost(hostStr: string): { host: string; port: string } {
+  if (hostStr.includes(":")) {
+    const [host, port] = hostStr.split(":");
+    return { host: host ?? "", port: port ?? "" };
+  }
+  return { host: hostStr, port: "" };
+}
+
+interface ConnectionFormData {
+  title: string;
+  dbType: ConnectionDbType;
+  host: string;
+  port: string;
+  databaseName: string;
+  username: string;
+  password: string;
+  managerName: string;
+  managerEmail: string;
+}
+
+const emptyForm: ConnectionFormData = {
+  title: "",
+  dbType: "postgresql",
+  host: "",
+  port: "",
+  databaseName: "",
+  username: "",
+  password: "",
+  managerName: "",
+  managerEmail: "",
+};
+
+/** API 명세 기준 입력 규칙 */
+const INPUT_RULES = {
+  connectionName: { maxLength: 100 },
+  host: { maxLength: 255 },
+  port: { min: 1, max: 65535 },
+  dbName: { maxLength: 100 },
+  username: { maxLength: 100 },
+  managerName: { maxLength: 100 },
+} as const;
+
+export default function DbConnectionPage() {
+  const router = useRouter();
+  const [list, setList] = useState<DbConnectionListItem[]>([]);
+  const [stats, setStats] = useState<{
+    totalConnections: number;
+    activeConnections: number;
+    totalTables: number;
+    totalColumns: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [originalPassword, setOriginalPassword] = useState<string>("");
-  const [formData, setFormData] = useState<ConnectionFormData>({
-    title: "",
-    dbType: "postgresql",
-    host: "",
-    port: "",
-    databaseName: "",
-    username: "",
-    password: "",
-    managerName: "",
-    managerEmail: "",
-  });
+  const [detailForModal, setDetailForModal] =
+    useState<DbConnectionDetailItem | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [formData, setFormData] = useState<ConnectionFormData>(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof ConnectionFormData, string>>
+  >({});
 
-  const totalConnections = connections.length;
-  const activeConnections = connections.filter(
-    (c) => c.statusVariant === "success",
-  ).length;
-  const totalTables = connections.reduce((sum, c) => sum + c.tableCount, 0);
-  const totalColumns = connections.reduce((sum, c) => sum + c.columnCount, 0);
+  const loadListAndStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [listRes, statsRes] = await Promise.all([
+      getDbConnectionList({ page: 0, size: 100 }),
+      getDbConnectionStats(),
+    ]);
+    if (listRes.success && listRes.result) setList(listRes.result.content);
+    if (statsRes.success && statsRes.result) setStats(statsRes.result);
+    if (!listRes.success) setError(listRes.message);
+    else if (!statsRes.success) setError(statsRes.message);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadListAndStats();
+  }, [loadListAndStats]);
+
+  useEffect(() => {
+    if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
+      setDetailForModal(null);
+      return;
+    }
+    let cancelled = false;
+    setModalLoading(true);
+    getDbConnectionDetail(Number(editingId)).then((res) => {
+      if (cancelled) return;
+      setModalLoading(false);
+      if (res.success && res.result) {
+        const d = res.result;
+        setDetailForModal(res.result);
+        setFormData({
+          title: d.connectionName,
+          dbType: dbmsTypeNameToDbType(d.dbmsTypeName ?? "PostgreSQL"),
+          host: d.host,
+          port: d.port != null ? String(d.port) : "",
+          databaseName: d.dbName,
+          username: d.username ?? "",
+          password: "",
+          managerName: d.managerName ?? "",
+          managerEmail: d.managerEmail ?? "",
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isModalOpen, editingId, isViewMode, isEditMode]);
+
+  const clearFieldError = (field: keyof ConnectionFormData) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   const openAddModal = () => {
+    setDetailForModal(null);
+    setEditingId(null);
     setIsViewMode(false);
     setIsEditMode(false);
-    setEditingId(null);
-    setFormData({
-      title: "",
-      dbType: "postgresql",
-      host: "",
-      port: "",
-      databaseName: "",
-      username: "",
-      password: "",
-      managerName: "",
-      managerEmail: "",
-    });
+    setFormData(emptyForm);
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
   const openViewModal = (id: string) => {
-    const connection = connections.find((c) => c.id === id);
-    if (!connection) return;
-
+    setEditingId(id);
     setIsViewMode(true);
     setIsEditMode(false);
-    setEditingId(id);
-    setFormData({
-      title: connection.title,
-      dbType: connection.dbType,
-      host: connection.host,
-      port: connection.port,
-      databaseName: connection.databaseName,
-      username: connection.username,
-      password: connection.password,
-      managerName: connection.managerName,
-      managerEmail: connection.managerEmail,
-    });
+    setFormData(emptyForm);
+    setDetailForModal(null);
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
   const openEditModal = (id: string) => {
-    const connection = connections.find((c) => c.id === id);
-    if (!connection) return;
-
+    setEditingId(id);
     setIsViewMode(false);
     setIsEditMode(true);
-    setEditingId(id);
-    setOriginalPassword(connection.password);
-    setFormData({
-      title: connection.title,
-      dbType: connection.dbType,
-      host: connection.host,
-      port: connection.port,
-      databaseName: connection.databaseName,
-      username: connection.username,
-      password: "",
-      managerName: connection.managerName,
-      managerEmail: connection.managerEmail,
-    });
+    setFormData(emptyForm);
+    setDetailForModal(null);
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
-  const handleViewDetails = (id: string) => {
-    openViewModal(id);
-  };
+  const handleSave = async () => {
+    const portNum = parseInt(formData.port, 10);
+    const emailTrim = formData.managerEmail.trim();
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const errors: Partial<Record<keyof ConnectionFormData, string>> = {};
 
-  const handleEdit = (id: string) => {
-    openEditModal(id);
-  };
+    if (!formData.title.trim()) errors.title = "연결 이름을 입력해 주세요.";
+    else if (
+      formData.title.trim().length > INPUT_RULES.connectionName.maxLength
+    )
+      errors.title = `최대 ${INPUT_RULES.connectionName.maxLength}자까지 입력 가능합니다.`;
 
-  const handleSave = () => {
-    // 비밀번호 처리: 수정 모드에서 비밀번호가 비어있으면 원래 비밀번호 사용
-    const passwordToSave =
-      isEditMode && editingId && !formData.password.trim()
-        ? originalPassword
-        : formData.password;
+    if (!formData.host.trim()) errors.host = "호스트를 입력해 주세요.";
+    else if (formData.host.trim().length > INPUT_RULES.host.maxLength)
+      errors.host = `최대 ${INPUT_RULES.host.maxLength}자까지 입력 가능합니다.`;
 
-    // 필수 필드 유효성 검사
-    if (
-      !formData.title.trim() ||
-      !formData.host.trim() ||
-      !formData.port.trim() ||
-      !formData.databaseName.trim() ||
-      !formData.username.trim() ||
-      (!isEditMode && !passwordToSave.trim()) ||
-      !formData.managerName.trim() ||
-      !formData.managerEmail.trim()
-    ) {
-      alert("모든 항목을 입력해주세요.");
+    if (!formData.port.trim()) errors.port = "포트를 입력해 주세요.";
+    else if (
+      Number.isNaN(portNum) ||
+      portNum < INPUT_RULES.port.min ||
+      portNum > INPUT_RULES.port.max
+    )
+      errors.port = `${INPUT_RULES.port.min}~${INPUT_RULES.port.max} 사이의 숫자를 입력해 주세요.`;
+
+    if (!formData.databaseName.trim())
+      errors.databaseName = "데이터베이스명을 입력해 주세요.";
+    else if (formData.databaseName.trim().length > INPUT_RULES.dbName.maxLength)
+      errors.databaseName = `최대 ${INPUT_RULES.dbName.maxLength}자까지 입력 가능합니다.`;
+
+    if (!formData.username.trim())
+      errors.username = "사용자명을 입력해 주세요.";
+    else if (formData.username.trim().length > INPUT_RULES.username.maxLength)
+      errors.username = `최대 ${INPUT_RULES.username.maxLength}자까지 입력 가능합니다.`;
+
+    if (!isEditMode && !formData.password.trim())
+      errors.password = "비밀번호를 입력해 주세요.";
+
+    if (!formData.managerName.trim())
+      errors.managerName = "담당자 이름을 입력해 주세요.";
+    else if (
+      formData.managerName.trim().length > INPUT_RULES.managerName.maxLength
+    )
+      errors.managerName = `최대 ${INPUT_RULES.managerName.maxLength}자까지 입력 가능합니다.`;
+
+    if (!emailTrim) errors.managerEmail = "담당자 이메일을 입력해 주세요.";
+    else if (!emailRe.test(emailTrim))
+      errors.managerEmail = "이메일 형식이 올바르지 않습니다.";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
+    setFieldErrors({});
+    setSaveLoading(true);
+    const baseBody = {
+      dbmsTypeId: dbTypeToId(formData.dbType),
+      connectionName: formData.title.trim(),
+      host: formData.host.trim(),
+      port: portNum,
+      dbName: formData.databaseName.trim(),
+      username: formData.username.trim(),
+      managerName: formData.managerName.trim(),
+      managerEmail: emailTrim,
+    };
+
     if (isEditMode && editingId) {
-      // 수정 모드
-      setConnections((prev) =>
-        prev.map((conn) =>
-          conn.id === editingId
-            ? {
-                ...conn,
-                title: formData.title,
-                dbType: formData.dbType,
-                host: formData.host,
-                port: formData.port,
-                databaseName: formData.databaseName,
-                username: formData.username,
-                password: passwordToSave,
-                managerName: formData.managerName,
-                managerEmail: formData.managerEmail,
-              }
-            : conn,
-        ),
-      );
+      const updateBody =
+        formData.password.trim() === ""
+          ? { ...baseBody }
+          : { ...baseBody, password: formData.password.trim() };
+      const res = await updateDbConnection(Number(editingId), updateBody);
+      setSaveLoading(false);
+      if (res.success) {
+        loadListAndStats();
+        setIsModalOpen(false);
+        alert("수정되었습니다. 목록이 갱신되었습니다.");
+      } else {
+        alert(res.message);
+      }
     } else {
-      // 추가 모드
-      const newConnection: ConnectionData = {
-        id: Date.now().toString(),
-        title: formData.title,
-        dbType: formData.dbType,
-        status: "연결됨",
-        statusVariant: "success",
-        host: formData.host,
-        port: formData.port,
-        databaseName: formData.databaseName,
-        username: formData.username,
-        password: passwordToSave,
-        managerName: formData.managerName,
-        managerEmail: formData.managerEmail,
-        tableCount: 0,
-        columnCount: 0,
-      };
-      setConnections((prev) => [newConnection, ...prev]);
+      const res = await createDbConnection({
+        ...baseBody,
+        password: formData.password.trim(),
+      });
+      setSaveLoading(false);
+      if (res.success) {
+        loadListAndStats();
+        setIsModalOpen(false);
+        alert("저장되었습니다. DB에 반영되었고 목록이 갱신되었습니다.");
+      } else {
+        alert(res.message);
+      }
     }
-    setIsModalOpen(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    const res = await deleteDbConnection(Number(id));
+    if (res.success) {
+      loadListAndStats();
+      if (editingId === id) setIsModalOpen(false);
+    } else {
+      alert(res.message);
+    }
   };
 
   const handleScan = (id: string) => {
-    // TODO: 스캔 로직
     console.log("스캔", id);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      setConnections((prev) => prev.filter((c) => c.id !== id));
-    }
-  };
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
+        <div
+          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+          aria-hidden
+        />
+        <p className="text-sm text-[var(--color-sidebar-hover-text)]">
+          로딩 중…
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    const isAuthError =
+      error.includes("403") ||
+      error.includes("401") ||
+      error.toLowerCase().includes("forbidden") ||
+      error.includes("권한") ||
+      error.includes("인증");
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
+        <p>{error}</p>
+        {isAuthError && (
+          <p className="text-sm text-[var(--color-sidebar-hover-text)]">
+            로그인 후 다시 시도해 주세요.
+          </p>
+        )}
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            colorScheme="main"
+            appearance="outline"
+            onClick={() => loadListAndStats()}
+          >
+            다시 시도
+          </Button>
+          <Button
+            type="button"
+            colorScheme="main"
+            appearance="outline"
+            onClick={() => router.push("/login")}
+          >
+            로그인 페이지로
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalConnections = stats?.totalConnections ?? 0;
+  const activeConnections = stats?.activeConnections ?? 0;
+  const totalTables = stats?.totalTables ?? 0;
+  const totalColumns = stats?.totalColumns ?? 0;
 
   return (
     <div className="h-full flex flex-col p-6 gap-5 overflow-hidden">
@@ -340,56 +471,58 @@ export default function DbConnectionPage() {
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {connections.map((connection) => {
+            {list.map((item) => {
+              const { host, port } = parseHost(item.host);
+              const dbType = dbmsTypeNameToDbType(item.dbmsTypeName);
+              const statusVariant = statusToVariant(item.status);
+              const statusLabel = statusToLabel(item.status);
               const details: ConnectionDetailItem[] = [
                 {
                   label: "호스트",
-                  value: `${connection.host}:${connection.port}`,
+                  value: port ? `${host}:${port}` : item.host,
                 },
-                { label: "데이터베이스명", value: connection.databaseName },
+                { label: "데이터베이스명", value: item.dbName },
                 {
                   label: "테이블 수",
-                  value: `${connection.tableCount.toLocaleString()}개`,
+                  value: `${item.totalTables.toLocaleString()}개`,
                 },
                 {
                   label: "컬럼 수",
-                  value: `${connection.columnCount.toLocaleString()}개`,
+                  value: `${item.totalColumns.toLocaleString()}개`,
                   highlight: true,
                 },
               ];
-
               const actions: ConnectionActionItem[] = [
                 {
                   label: "상세보기",
                   variant: "detail",
-                  onClick: () => handleViewDetails(connection.id),
+                  onClick: () => openViewModal(String(item.id)),
                 },
                 {
                   label: "스캔",
                   variant: "scan",
-                  onClick: () => handleScan(connection.id),
+                  onClick: () => handleScan(String(item.id)),
                 },
                 {
                   label: "수정",
                   variant: "edit",
-                  onClick: () => handleEdit(connection.id),
+                  onClick: () => openEditModal(String(item.id)),
                   hidden: true,
                 },
                 {
                   label: "삭제",
                   variant: "delete",
-                  onClick: () => handleDelete(connection.id),
+                  onClick: () => handleDelete(String(item.id)),
                 },
               ];
-
               return (
                 <ConnectionCard
-                  key={connection.id}
-                  dbType={connection.dbType}
-                  title={connection.title}
-                  subtitle={connection.dbType.toUpperCase()}
-                  status={connection.status}
-                  statusVariant={connection.statusVariant}
+                  key={item.id}
+                  dbType={dbType}
+                  title={item.connectionName}
+                  subtitle={item.dbmsTypeName}
+                  status={statusLabel}
+                  statusVariant={statusVariant}
                   details={details}
                   actions={actions}
                 />
@@ -412,7 +545,15 @@ export default function DbConnectionPage() {
         size="wide"
         footer={
           <div className="flex justify-end gap-2">
-            {isViewMode ? (
+            {modalLoading ? (
+              <span className="flex items-center gap-2 text-sm text-[var(--color-sidebar-hover-text)]">
+                <span
+                  className="size-4 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0"
+                  aria-hidden
+                />
+                로딩 중…
+              </span>
+            ) : isViewMode ? (
               <>
                 <Button
                   type="button"
@@ -427,12 +568,6 @@ export default function DbConnectionPage() {
                   colorScheme="main"
                   appearance="outline"
                   onClick={() => {
-                    if (editingId) {
-                      const connection = connections.find((c) => c.id === editingId);
-                      if (connection) {
-                        setOriginalPassword(connection.password);
-                      }
-                    }
                     setIsViewMode(false);
                     setIsEditMode(true);
                     setFormData((prev) => ({ ...prev, password: "" }));
@@ -448,6 +583,7 @@ export default function DbConnectionPage() {
                   colorScheme="coral"
                   appearance="outline"
                   onClick={() => setIsModalOpen(false)}
+                  disabled={saveLoading}
                 >
                   취소
                 </Button>
@@ -456,8 +592,9 @@ export default function DbConnectionPage() {
                   colorScheme="main"
                   appearance="outline"
                   onClick={handleSave}
+                  disabled={saveLoading}
                 >
-                  {isEditMode ? "저장" : "추가"}
+                  {saveLoading ? "처리 중…" : isEditMode ? "저장" : "추가"}
                 </Button>
               </>
             )}
@@ -476,13 +613,28 @@ export default function DbConnectionPage() {
               id="connection-title"
               type="text"
               value={formData.title}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, title: e.target.value }))
-              }
+              onChange={(e) => {
+                clearFieldError("title");
+                setFormData((prev) => ({ ...prev, title: e.target.value }));
+              }}
               placeholder="연결 이름을 입력하세요"
               colorScheme="main"
               disabled={isViewMode}
+              maxLength={INPUT_RULES.connectionName.maxLength}
+              aria-invalid={!!fieldErrors.title}
+              aria-describedby={
+                fieldErrors.title ? "connection-title-error" : undefined
+              }
             />
+            {fieldErrors.title && (
+              <span
+                id="connection-title-error"
+                className="text-xs text-[var(--color-coral-text)]"
+                role="alert"
+              >
+                {fieldErrors.title}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -519,15 +671,25 @@ export default function DbConnectionPage() {
                 id="connection-host"
                 type="text"
                 value={formData.host}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, host: e.target.value }))
-                }
-                placeholder="192.168.1.100"
+                onChange={(e) => {
+                  clearFieldError("host");
+                  setFormData((prev) => ({ ...prev, host: e.target.value }));
+                }}
+                placeholder="192.168.1.100 또는 example.com"
                 colorScheme="main"
                 disabled={isViewMode}
+                maxLength={INPUT_RULES.host.maxLength}
+                aria-invalid={!!fieldErrors.host}
               />
+              {fieldErrors.host && (
+                <span
+                  className="text-xs text-[var(--color-coral-text)]"
+                  role="alert"
+                >
+                  {fieldErrors.host}
+                </span>
+              )}
             </div>
-
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="connection-port"
@@ -538,14 +700,29 @@ export default function DbConnectionPage() {
               <Input
                 id="connection-port"
                 type="text"
+                inputMode="numeric"
                 value={formData.port}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, port: e.target.value }))
-                }
-                placeholder="5432"
+                onChange={(e) => {
+                  clearFieldError("port");
+                  const v = e.target.value.replace(/\D/g, "");
+                  if (v === "" || parseInt(v, 10) <= INPUT_RULES.port.max) {
+                    setFormData((prev) => ({ ...prev, port: v }));
+                  }
+                }}
+                placeholder="5432 / 3306 / 1521"
                 colorScheme="main"
                 disabled={isViewMode}
+                maxLength={5}
+                aria-invalid={!!fieldErrors.port}
               />
+              {fieldErrors.port && (
+                <span
+                  className="text-xs text-[var(--color-coral-text)]"
+                  role="alert"
+                >
+                  {fieldErrors.port}
+                </span>
+              )}
             </div>
           </div>
 
@@ -560,16 +737,27 @@ export default function DbConnectionPage() {
               id="connection-database-name"
               type="text"
               value={formData.databaseName}
-              onChange={(e) =>
+              onChange={(e) => {
+                clearFieldError("databaseName");
                 setFormData((prev) => ({
                   ...prev,
                   databaseName: e.target.value,
-                }))
-              }
+                }));
+              }}
               placeholder="데이터베이스명을 입력하세요"
               colorScheme="main"
               disabled={isViewMode}
+              maxLength={INPUT_RULES.dbName.maxLength}
+              aria-invalid={!!fieldErrors.databaseName}
             />
+            {fieldErrors.databaseName && (
+              <span
+                className="text-xs text-[var(--color-coral-text)]"
+                role="alert"
+              >
+                {fieldErrors.databaseName}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -584,15 +772,28 @@ export default function DbConnectionPage() {
                 id="connection-username"
                 type="text"
                 value={formData.username}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, username: e.target.value }))
-                }
+                onChange={(e) => {
+                  clearFieldError("username");
+                  setFormData((prev) => ({
+                    ...prev,
+                    username: e.target.value,
+                  }));
+                }}
                 placeholder="사용자명을 입력하세요"
                 colorScheme="main"
                 disabled={isViewMode}
+                maxLength={INPUT_RULES.username.maxLength}
+                aria-invalid={!!fieldErrors.username}
               />
+              {fieldErrors.username && (
+                <span
+                  className="text-xs text-[var(--color-coral-text)]"
+                  role="alert"
+                >
+                  {fieldErrors.username}
+                </span>
+              )}
             </div>
-
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="connection-password"
@@ -603,117 +804,131 @@ export default function DbConnectionPage() {
               <Input
                 id="connection-password"
                 type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, password: e.target.value }))
+                value={isViewMode ? "********" : formData.password}
+                onChange={(e) => {
+                  clearFieldError("password");
+                  setFormData((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                  }));
+                }}
+                placeholder={
+                  isEditMode ? "변경 시에만 입력" : "비밀번호를 입력하세요"
                 }
-                placeholder="비밀번호를 입력하세요"
                 colorScheme="main"
                 disabled={isViewMode}
+                aria-invalid={!!fieldErrors.password}
+                readOnly={isViewMode}
               />
+              {fieldErrors.password && (
+                <span
+                  className="text-xs text-[var(--color-coral-text)]"
+                  role="alert"
+                >
+                  {fieldErrors.password}
+                </span>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+              <label
+                htmlFor="connection-manager-name"
+                className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+              >
                 담당자 이름
               </label>
               <Input
+                id="connection-manager-name"
                 type="text"
                 value={formData.managerName}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearFieldError("managerName");
                   setFormData((prev) => ({
                     ...prev,
                     managerName: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 placeholder="담당자 이름을 입력하세요"
                 colorScheme="main"
                 disabled={isViewMode}
+                maxLength={INPUT_RULES.managerName.maxLength}
+                aria-invalid={!!fieldErrors.managerName}
               />
+              {fieldErrors.managerName && (
+                <span
+                  className="text-xs text-[var(--color-coral-text)]"
+                  role="alert"
+                >
+                  {fieldErrors.managerName}
+                </span>
+              )}
             </div>
-
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
+              <label
+                htmlFor="connection-manager-email"
+                className="text-sm font-medium text-[var(--color-sidebar-hover-text)]"
+              >
                 담당자 이메일
               </label>
               <Input
+                id="connection-manager-email"
                 type="email"
                 value={formData.managerEmail}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearFieldError("managerEmail");
                   setFormData((prev) => ({
                     ...prev,
                     managerEmail: e.target.value,
-                  }))
-                }
-                placeholder="담당자 이메일을 입력하세요"
+                  }));
+                }}
+                placeholder="example@company.com"
                 colorScheme="main"
                 disabled={isViewMode}
+                aria-invalid={!!fieldErrors.managerEmail}
               />
+              {fieldErrors.managerEmail && (
+                <span
+                  className="text-xs text-[var(--color-coral-text)]"
+                  role="alert"
+                >
+                  {fieldErrors.managerEmail}
+                </span>
+              )}
             </div>
           </div>
 
-          {(isViewMode || isEditMode) && editingId && (
+          {(isViewMode || isEditMode) && detailForModal && (
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
                   연결 상태
                 </label>
-                {(() => {
-                  const connection = connections.find(
-                    (c) => c.id === editingId,
-                  );
-                  const statusVariant = connection?.statusVariant || "success";
-                  const statusColors = {
-                    success: {
-                      border: "border-[var(--color-green-border)]",
-                      bg: "bg-[var(--color-green-bg)]",
-                      text: "text-[var(--color-green-text)]",
-                    },
-                    warning: {
-                      border: "border-[var(--color-yellow-border)]",
-                      bg: "bg-[var(--color-yellow-bg)]",
-                      text: "text-[var(--color-yellow-text)]",
-                    },
-                    error: {
-                      border: "border-[var(--color-coral-border)]",
-                      bg: "bg-[var(--color-coral-bg)]",
-                      text: "text-[var(--color-coral-text)]",
-                    },
-                  };
-                  const colors = statusColors[statusVariant];
-                  return (
-                    <div
-                      className={`h-9 px-3 py-2 rounded-md border-2 ${colors.border} ${colors.bg} text-sm ${colors.text} flex items-center`}
-                    >
-                      {connection?.status || ""}
-                    </div>
-                  );
-                })()}
+                <div
+                  className={`h-9 px-3 py-2 rounded-md border-2 flex items-center text-sm ${
+                    detailForModal.status === "CONNECTED"
+                      ? "border-[var(--color-green-border)] bg-[var(--color-green-bg)] text-[var(--color-green-text)]"
+                      : "border-[var(--color-yellow-border)] bg-[var(--color-yellow-bg)] text-[var(--color-yellow-text)]"
+                  }`}
+                >
+                  {statusToLabel(detailForModal.status)}
+                </div>
               </div>
-
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
                   총 테이블 수
                 </label>
                 <div className="h-9 px-3 py-2 rounded-md border-2 border-[var(--color-purple-border)] bg-[var(--color-purple-bg)] text-sm text-[var(--color-purple-text)] flex items-center">
-                  {connections
-                    .find((c) => c.id === editingId)
-                    ?.tableCount.toLocaleString() || "0"}
-                  개
+                  {detailForModal.totalTables.toLocaleString()}개
                 </div>
               </div>
-
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-[var(--color-sidebar-hover-text)]">
                   총 컬럼 수
                 </label>
                 <div className="h-9 px-3 py-2 rounded-md border-2 border-[var(--color-yellow-border)] bg-[var(--color-yellow-bg)] text-sm text-[var(--color-yellow-text)] flex items-center">
-                  {connections
-                    .find((c) => c.id === editingId)
-                    ?.columnCount.toLocaleString() || "0"}
-                  개
+                  {detailForModal.totalColumns.toLocaleString()}개
                 </div>
               </div>
             </div>
