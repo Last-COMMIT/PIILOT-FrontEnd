@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, PasswordInput } from "@/shared/ui";
+import { signup as authSignup } from "@/shared/api/auth";
 import { TermsModal, type ModalKind } from "./TermsModal";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,6 +33,8 @@ export function SignupForm() {
     password: false,
     passwordConfirm: false,
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const nameError = useMemo(() => {
     if (!touched.name) return "";
@@ -81,11 +84,29 @@ export function SignupForm() {
     setPolicyViewed((prev) => ({ ...prev, [kind]: true }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
-    // TODO: API 연동 (회원가입)
-    // 회원가입 후에는 로그인 페이지로 이동
-    router.replace("/login");
+    setErrorMessage("");
+    setIsLoading(true);
+    try {
+      const data = await authSignup({
+        email: email.trim(),
+        password,
+        passwordConfirm,
+        name: name.trim(),
+      });
+      if (data.success) {
+        router.replace("/login");
+      } else {
+        setErrorMessage(data.message ?? "회원가입에 실패했습니다.");
+      }
+    } catch {
+      setErrorMessage(
+        "서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 이미 로그인 상태면 회원가입 페이지 진입 방지
@@ -224,14 +245,20 @@ export function SignupForm() {
           ) : null}
         </div>
 
+        {errorMessage ? (
+          <p className="text-xs text-[var(--color-coral-text)]">
+            {errorMessage}
+          </p>
+        ) : null}
+
         <Button
           colorScheme="main"
           appearance="solid"
           className="w-full mt-2"
-          disabled={!canSubmit}
+          disabled={!canSubmit || isLoading}
           onClick={handleSubmit}
         >
-          회원가입
+          {isLoading ? "회원가입 중..." : "회원가입"}
         </Button>
 
         <div className="text-center text-xs text-[var(--color-text-light-gray)] pt-1">

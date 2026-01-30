@@ -9,6 +9,8 @@ export default function LogoutPage() {
   useEffect(() => {
     try {
       window.localStorage.removeItem("piilot_authed");
+      window.localStorage.removeItem("piilot_access_token");
+      window.localStorage.removeItem("piilot_refresh_token");
       window.localStorage.removeItem("piilot_role");
     } catch {
       // ignore
