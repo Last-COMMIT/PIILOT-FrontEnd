@@ -6,11 +6,12 @@ export interface LoginRequest {
   password: string;
 }
 
-/** 로그인 성공 시 result */
+/** 로그인 성공 시 result (role은 백엔드가 포함할 경우 사용) */
 export interface LoginResult {
   accessToken: string;
   refreshToken: string;
   accessTokenExpiresIn: number;
+  role?: string;
 }
 
 export type LoginResponse = ApiResponse<LoginResult>;

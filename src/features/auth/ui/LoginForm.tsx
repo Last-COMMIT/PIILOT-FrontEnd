@@ -53,9 +53,13 @@ export function LoginForm() {
         password,
       });
       if (data.success && data.result) {
-        const { accessToken, refreshToken } = data.result;
-        if (accessToken && refreshToken) saveTokens(accessToken, refreshToken);
-        router.replace("/");
+        const { accessToken, refreshToken, role } = data.result;
+        if (accessToken && refreshToken) {
+          saveTokens(accessToken, refreshToken, role);
+          router.replace("/");
+        } else {
+          setErrorMessage("토큰 정보가 누락되었습니다.");
+        }
       } else {
         setErrorMessage(data.message ?? "로그인에 실패했습니다.");
       }

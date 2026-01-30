@@ -46,11 +46,16 @@ export function isAuthed(): boolean {
   return safeGetItem(KEY_AUTHED) === "1";
 }
 
-/** 토큰 저장 (로그인/refresh 성공 시) */
-export function saveTokens(accessToken: string, refreshToken: string): void {
+/** 토큰 저장 (로그인/refresh 성공 시). role은 백엔드가 로그인 응답에 포함할 경우 전달 */
+export function saveTokens(
+  accessToken: string,
+  refreshToken: string,
+  role?: string,
+): void {
   safeSetItem(KEY_AUTHED, "1");
   safeSetItem(KEY_ACCESS_TOKEN, accessToken);
   safeSetItem(KEY_REFRESH_TOKEN, refreshToken);
+  if (role != null && role !== "") safeSetItem(KEY_ROLE, role);
 }
 
 /** 토큰·인증 정보 제거 (로그아웃/refresh 실패 시) */
