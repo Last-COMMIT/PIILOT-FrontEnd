@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Footer } from "@/widgets/footer";
-import { TermsModal, type ModalKind } from "./TermsModal";
+import { TermsModal, type ModalKind } from "@/features/auth/ui/TermsModal";
 
 export interface AuthLayoutProps {
   title: string;
