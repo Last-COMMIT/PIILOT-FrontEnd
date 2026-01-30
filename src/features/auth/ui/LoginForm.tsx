@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, PasswordInput } from "@/shared/ui";
-import { login as authLogin } from "@/shared/api/auth";
+import { login as authLogin, saveTokens, isAuthed } from "@/features/auth";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // 10~16자, 영문/숫자/특수문자 각각 1개 이상
@@ -54,15 +54,7 @@ export function LoginForm() {
       });
       if (data.success && data.result) {
         const { accessToken, refreshToken } = data.result;
-        try {
-          window.localStorage.setItem("piilot_authed", "1");
-          if (accessToken)
-            window.localStorage.setItem("piilot_access_token", accessToken);
-          if (refreshToken)
-            window.localStorage.setItem("piilot_refresh_token", refreshToken);
-        } catch {
-          // ignore
-        }
+        if (accessToken && refreshToken) saveTokens(accessToken, refreshToken);
         router.replace("/");
       } else {
         setErrorMessage(data.message ?? "로그인에 실패했습니다.");
@@ -79,12 +71,7 @@ export function LoginForm() {
   // 이미 로그인 상태면 로그인 페이지 진입 방지
   useEffect(() => {
     if (preview) return;
-    try {
-      const authed = window.localStorage.getItem("piilot_authed") === "1";
-      if (authed) router.replace("/");
-    } catch {
-      // ignore
-    }
+    if (typeof window !== "undefined" && isAuthed()) router.replace("/");
   }, [router, preview]);
 
   return (

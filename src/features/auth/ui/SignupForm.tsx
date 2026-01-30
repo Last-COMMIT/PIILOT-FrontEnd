@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, PasswordInput } from "@/shared/ui";
-import { signup as authSignup } from "@/shared/api/auth";
+import { signup as authSignup, isAuthed } from "@/features/auth";
 import { TermsModal, type ModalKind } from "./TermsModal";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -112,12 +112,7 @@ export function SignupForm() {
   // 이미 로그인 상태면 회원가입 페이지 진입 방지
   useEffect(() => {
     if (preview) return;
-    try {
-      const authed = window.localStorage.getItem("piilot_authed") === "1";
-      if (authed) router.replace("/");
-    } catch {
-      // ignore
-    }
+    if (typeof window !== "undefined" && isAuthed()) router.replace("/");
   }, [router, preview]);
 
   return (

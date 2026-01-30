@@ -1,4 +1,4 @@
-import type { ApiResponse } from "../types";
+import type { ApiResponse } from "@/shared/api";
 
 /** 로그인 요청 */
 export interface LoginRequest {

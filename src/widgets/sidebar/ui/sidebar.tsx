@@ -18,7 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Footer } from "@/widgets/footer";
-import { TermsModal, type ModalKind } from "@/views/auth/ui/TermsModal";
+import { TermsModal, type ModalKind } from "@/features/auth";
 
 interface MenuItem {
   label: string;
