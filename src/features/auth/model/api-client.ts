@@ -57,12 +57,13 @@ export async function fetchWithAuth(
 
   const res = await fetch(input, { ...init, headers });
 
-  if (res.status !== 401) return res;
+  // 401/403: 토큰 만료·무효 또는 권한 없음 → refresh 후 재시도, 실패 시 로그인으로
+  if (res.status !== 401 && res.status !== 403) return res;
 
   const refreshed = await doRefresh();
   if (!refreshed) {
     redirectToLogin();
-    throw new Error("Session expired");
+    throw new Error("Session expired or access denied");
   }
 
   const newAccessToken = getAccessToken();

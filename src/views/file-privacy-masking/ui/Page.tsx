@@ -132,8 +132,19 @@ export default function FilePrivacyMaskingPage() {
   const [currentOriginalIndex, setCurrentOriginalIndex] = useState(0);
   const [currentMaskedIndex, setCurrentMaskedIndex] = useState(0);
   const [isConverting, setIsConverting] = useState(false);
+  const [showLongLoadingIndicator, setShowLongLoadingIndicator] =
+    useState(false);
   const [maskedFileIds, setMaskedFileIds] = useState<Set<string>>(new Set());
   const conversionTokenRef = useRef(0);
+
+  useEffect(() => {
+    if (!isConverting) {
+      setShowLongLoadingIndicator(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLongLoadingIndicator(true), 1000);
+    return () => clearTimeout(timer);
+  }, [isConverting]);
 
   const filteredFiles = useMemo(() => {
     return files.filter((file) => {
@@ -626,33 +637,40 @@ export default function FilePrivacyMaskingPage() {
             <div className="p-8 flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
               {isConverting ? (
                 <>
-                  <div className="relative w-full h-32 flex items-center justify-center overflow-hidden">
-                    <style>{`
-                      @keyframes fly-straight {
-                        0% {
-                          transform: translateX(-100%) rotate(30deg);
-                          opacity: 0;
+                  {showLongLoadingIndicator ? (
+                    <div className="relative w-full h-32 flex items-center justify-center overflow-hidden">
+                      <style>{`
+                        @keyframes fly-straight {
+                          0% {
+                            transform: translateX(-100%) rotate(30deg);
+                            opacity: 0;
+                          }
+                          50% {
+                            transform: translateX(0%) rotate(30deg);
+                            opacity: 1;
+                          }
+                          100% {
+                            transform: translateX(120%) rotate(30deg);
+                            opacity: 0;
+                          }
                         }
-                        50% {
-                          transform: translateX(0%) rotate(30deg);
-                          opacity: 1;
+                        .flying-plane {
+                          animation: fly-straight 2s linear infinite;
                         }
-                        100% {
-                          transform: translateX(120%) rotate(30deg);
-                          opacity: 0;
-                        }
-                      }
-                      .flying-plane {
-                        animation: fly-straight 2s linear infinite;
-                      }
-                    `}</style>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {/* 비행기 애니메이션 - 왼쪽에서 오른쪽으로 일직선 이동 */}
-                      <Plane className="size-16 text-[var(--color-main-bg)] flying-plane" />
+                      `}</style>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Plane className="size-16 text-[var(--color-main-bg)] flying-plane" />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="h-32 flex items-center justify-center">
+                      <div className="size-8 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin" />
+                    </div>
+                  )}
                   <p className="text-sm text-[var(--color-text-light-gray)]">
-                    AI 마스킹 처리 중...
+                    {showLongLoadingIndicator
+                      ? "AI 마스킹 처리 중..."
+                      : "처리 중..."}
                   </p>
                   <p className="text-xs text-[var(--color-text-light-gray)]/60">
                     {maskedFileIds.size} / {selectedFileIds.size} 파일 변환 완료
