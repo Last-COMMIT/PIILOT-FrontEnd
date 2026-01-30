@@ -16,6 +16,18 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      code: (errorBody as { code?: string }).code ?? "",
+      message:
+        (errorBody as { message?: string }).message ??
+        `요청 실패 (${res.status})`,
+      result: null,
+      timestamp: "",
+    } as LoginResponse;
+  }
   return res.json() as Promise<LoginResponse>;
 }
 
@@ -26,19 +38,41 @@ export async function signup(body: SignupRequest): Promise<SignupResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      code: (errorBody as { code?: string }).code ?? "",
+      message:
+        (errorBody as { message?: string }).message ??
+        `요청 실패 (${res.status})`,
+      result: null,
+      timestamp: "",
+    } as SignupResponse;
+  }
   return res.json() as Promise<SignupResponse>;
 }
 
 /** 토큰 재발급 (Authorization: Bearer {refreshToken}) */
-export async function refreshToken(
-  refreshToken: string,
-): Promise<RefreshResponse> {
+export async function refreshToken(token: string): Promise<RefreshResponse> {
   const res = await fetch(`${AUTH_BASE}/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${refreshToken}`,
+      Authorization: `Bearer ${token}`,
     },
   });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      code: (errorBody as { code?: string }).code ?? "",
+      message:
+        (errorBody as { message?: string }).message ??
+        `토큰 갱신 실패 (${res.status})`,
+      result: null,
+      timestamp: "",
+    } as RefreshResponse;
+  }
   return res.json() as Promise<RefreshResponse>;
 }
