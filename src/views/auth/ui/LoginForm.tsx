@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, PasswordInput } from "@/shared/ui";
+import { login as authLogin } from "@/shared/api/auth";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // 10~16자, 영문/숫자/특수문자 각각 1개 이상
@@ -16,6 +17,8 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState({ email: false, password: false });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const emailError = useMemo(() => {
     if (!touched.email) return "";
@@ -40,14 +43,37 @@ export function LoginForm() {
     return true;
   }, [email, password]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
+    setErrorMessage("");
+    setIsLoading(true);
     try {
-      window.localStorage.setItem("piilot_authed", "1");
+      const data = await authLogin({
+        email: email.trim(),
+        password,
+      });
+      if (data.success && data.result) {
+        const { accessToken, refreshToken } = data.result;
+        try {
+          window.localStorage.setItem("piilot_authed", "1");
+          if (accessToken)
+            window.localStorage.setItem("piilot_access_token", accessToken);
+          if (refreshToken)
+            window.localStorage.setItem("piilot_refresh_token", refreshToken);
+        } catch {
+          // ignore
+        }
+        router.replace("/");
+      } else {
+        setErrorMessage(data.message ?? "로그인에 실패했습니다.");
+      }
     } catch {
-      // ignore
+      setErrorMessage(
+        "서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.",
+      );
+    } finally {
+      setIsLoading(false);
     }
-    router.replace("/");
   };
 
   // 이미 로그인 상태면 로그인 페이지 진입 방지
@@ -102,14 +128,18 @@ export function LoginForm() {
         ) : null}
       </div>
 
+      {errorMessage ? (
+        <p className="text-xs text-[var(--color-coral-text)]">{errorMessage}</p>
+      ) : null}
+
       <Button
         colorScheme="main"
         appearance="solid"
         className="w-full mt-2"
-        disabled={!canSubmit}
+        disabled={!canSubmit || isLoading}
         onClick={handleSubmit}
       >
-        로그인
+        {isLoading ? "로그인 중..." : "로그인"}
       </Button>
 
       <div className="text-center text-xs text-[var(--color-text-light-gray)] pt-1">
