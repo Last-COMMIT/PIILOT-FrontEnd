@@ -91,59 +91,63 @@ export default function DbPrivacyIssuesPage() {
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<number | null>(null);
 
-  const loadIssues = useCallback(async (pageNum: number, append: boolean) => {
-    const res = await getDbPiiIssues({ page: pageNum, size: PAGE_SIZE });
-    if (!res.success) {
-      const msg = res.message ?? "";
-      if (NOT_IMPLEMENTED_PATTERN.test(msg)) {
-        setApiNotReady(true);
-        setError(null);
+  const loadIssues = useCallback(
+    async (pageNum: number, append: boolean): Promise<boolean> => {
+      const res = await getDbPiiIssues({ page: pageNum, size: PAGE_SIZE });
+      if (!res.success) {
+        const msg = res.message ?? "";
+        if (NOT_IMPLEMENTED_PATTERN.test(msg)) {
+          setApiNotReady(true);
+          setError(null);
+          if (!append) setTableIssues([]);
+          setStats(null);
+          setHasNext(false);
+          return false;
+        }
+        setApiNotReady(false);
+        setError(msg || "이슈 목록을 불러오지 못했습니다.");
         if (!append) setTableIssues([]);
-        setStats(null);
         setHasNext(false);
-        return;
+        return false;
       }
       setApiNotReady(false);
-      setError(msg || "이슈 목록을 불러오지 못했습니다.");
-      if (!append) setTableIssues([]);
-      setHasNext(false);
-      return;
-    }
-    setApiNotReady(false);
-    setError(null);
-    if (res.result) {
-      const rawContent = res.result.content;
-      // 명세: result.content = { content: [], hasNext, ... }. 일부 백엔드는 result.content = [] 로 보낼 수 있음
-      const contentArray: DbPiiIssueTableGroup[] = Array.isArray(rawContent)
-        ? rawContent
-        : Array.isArray((rawContent as { content?: DbPiiIssueTableGroup[] })?.content)
-          ? (rawContent as { content: DbPiiIssueTableGroup[] }).content
-          : [];
-      const list = contentArray
-        .filter(
-          (g): g is DbPiiIssueTableGroup =>
-            g != null &&
-            typeof g.tableId === "number" &&
-            Array.isArray(g.issues),
-        )
-        .map(apiGroupToTableIssue);
-      if (append) {
-        setTableIssues((prev) => [...prev, ...list]);
-      } else {
-        setTableIssues(list);
+      setError(null);
+      if (res.result) {
+        const rawContent = res.result.content;
+        // 명세: result.content = { content: [], hasNext, ... }. 일부 백엔드는 result.content = [] 로 보낼 수 있음
+        const contentArray: DbPiiIssueTableGroup[] = Array.isArray(rawContent)
+          ? rawContent
+          : Array.isArray((rawContent as { content?: DbPiiIssueTableGroup[] })?.content)
+            ? (rawContent as { content: DbPiiIssueTableGroup[] }).content
+            : [];
+        const list = contentArray
+          .filter(
+            (g): g is DbPiiIssueTableGroup =>
+              g != null &&
+              typeof g.tableId === "number" &&
+              Array.isArray(g.issues),
+          )
+          .map(apiGroupToTableIssue);
+        if (append) {
+          setTableIssues((prev) => [...prev, ...list]);
+        } else {
+          setTableIssues(list);
+        }
+        setStats(res.result.stats ?? null);
+        const slice =
+          rawContent && !Array.isArray(rawContent)
+            ? (rawContent as { hasNext?: boolean })
+            : null;
+        setHasNext(Boolean(slice?.hasNext));
+        return true;
       }
-      setStats(res.result.stats ?? null);
-      const slice =
-        rawContent && !Array.isArray(rawContent)
-          ? (rawContent as { hasNext?: boolean })
-          : null;
-      setHasNext(Boolean(slice?.hasNext));
-    } else {
       if (!append) setTableIssues([]);
       setStats(null);
       setHasNext(false);
-    }
-  }, []);
+      return false;
+    },
+    [],
+  );
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -199,9 +203,12 @@ export default function DbPrivacyIssuesPage() {
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
-    setPage(nextPage);
     setLoading(true);
-    loadIssues(nextPage, true).finally(() => setLoading(false));
+    loadIssues(nextPage, true)
+      .then((ok) => {
+        if (ok) setPage(nextPage);
+      })
+      .finally(() => setLoading(false));
   };
 
   const getWorkStatusButtonProps = (status: WorkStatus) => {

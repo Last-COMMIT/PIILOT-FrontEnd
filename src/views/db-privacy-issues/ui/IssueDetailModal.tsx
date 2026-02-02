@@ -46,19 +46,26 @@ export default function IssueDetailModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     if (!open || issueId == null) {
       const id = setTimeout(() => {
+        if (cancelled) return;
         setDetail(null);
         setError(null);
       }, 0);
-      return () => clearTimeout(id);
+      return () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
     }
     const id = setTimeout(() => {
+      if (cancelled) return;
       setLoading(true);
       setError(null);
     }, 0);
     getDbPiiIssueDetail(issueId)
       .then((res) => {
+        if (cancelled) return;
         if (res.success && res.result) {
           setDetail(res.result);
           setError(null);
@@ -68,11 +75,17 @@ export default function IssueDetailModal({
         }
       })
       .catch(() => {
+        if (cancelled) return;
         setDetail(null);
         setError("상세 정보를 불러오는 중 오류가 발생했습니다.");
       })
-      .finally(() => setLoading(false));
-    return () => clearTimeout(id);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [open, issueId]);
 
   const riskLevelLabel = detail

@@ -14,6 +14,14 @@ import type {
 
 const BASE = `${API_BASE_URL}/api/db-pii`;
 
+const EMPTY_API_RESPONSE: ApiResponse<never> = {
+  success: false,
+  code: "",
+  message: "응답이 비어있습니다.",
+  result: null,
+  timestamp: "",
+};
+
 function errorMessage(
   data: { message?: string } | null,
   status: number,
@@ -23,12 +31,24 @@ function errorMessage(
 
 function toErrorResponse<T>(error: unknown): ApiResponse<T> {
   return {
-    success: false,
-    code: "",
+    ...EMPTY_API_RESPONSE,
     message: getApiErrorMessage(error),
-    result: null,
-    timestamp: "",
   };
+}
+
+function parseJsonResponse<T>(raw: string | null): ApiResponse<T> {
+  if (!raw?.trim()) return { ...EMPTY_API_RESPONSE } as ApiResponse<T>;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object"
+      ? ({ ...EMPTY_API_RESPONSE, ...parsed } as ApiResponse<T>)
+      : ({ ...EMPTY_API_RESPONSE } as ApiResponse<T>);
+  } catch {
+    return {
+      ...EMPTY_API_RESPONSE,
+      message: raw || EMPTY_API_RESPONSE.message,
+    } as ApiResponse<T>;
+  }
 }
 
 /** 5-1. DB PII 커넥션 목록 조회 (필터용) */
@@ -37,9 +57,8 @@ export async function getDbPiiConnections(): Promise<
 > {
   try {
     const res = await fetchWithAuth(`${BASE}/connections`);
-    const data = (await res
-      .json()
-      .catch(() => ({}))) as ApiResponse<DbPiiConnection[]>;
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<DbPiiConnection[]>(raw || null);
     if (!res.ok) {
       return {
         ...data,
@@ -62,9 +81,8 @@ export async function getDbPiiTables(
     const res = await fetchWithAuth(
       `${BASE}/connections/${connectionId}/tables`,
     );
-    const data = (await res
-      .json()
-      .catch(() => ({}))) as ApiResponse<DbPiiTable[]>;
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<DbPiiTable[]>(raw || null);
     if (!res.ok) {
       return {
         ...data,
@@ -98,9 +116,8 @@ export async function getDbPiiColumns(
     const qs = search.toString();
     const url = qs ? `${BASE}/columns?${qs}` : `${BASE}/columns`;
     const res = await fetchWithAuth(url);
-    const data = (await res
-      .json()
-      .catch(() => ({}))) as ApiResponse<DbPiiColumnsResult>;
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<DbPiiColumnsResult>(raw || null);
     if (!res.ok) {
       return {
         ...data,
@@ -128,12 +145,7 @@ export async function getDbPiiIssues(params?: {
     const url = qs ? `${BASE}/issues?${qs}` : `${BASE}/issues`;
     const res = await fetchWithAuth(url);
     const rawText = await res.text();
-    let data: ApiResponse<DbPiiIssuesResult> & { message?: string };
-    try {
-      data = (rawText ? JSON.parse(rawText) : {}) as ApiResponse<DbPiiIssuesResult>;
-    } catch {
-      data = { success: false, code: "", message: rawText, result: null, timestamp: "" };
-    }
+    const data = parseJsonResponse<DbPiiIssuesResult>(rawText || null);
     if (!res.ok) {
       return {
         ...data,
@@ -154,9 +166,8 @@ export async function getDbPiiIssueDetail(
 ): Promise<ApiResponse<DbPiiIssueDetail>> {
   try {
     const res = await fetchWithAuth(`${BASE}/issues/${issueId}`);
-    const data = (await res
-      .json()
-      .catch(() => ({}))) as ApiResponse<DbPiiIssueDetail>;
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<DbPiiIssueDetail>(raw || null);
     if (!res.ok) {
       return {
         ...data,
@@ -182,9 +193,8 @@ export async function patchDbPiiIssueStatus(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = (await res
-      .json()
-      .catch(() => ({}))) as ApiResponse<DbPiiIssueStatusResult>;
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<DbPiiIssueStatusResult>(raw || null);
     if (!res.ok) {
       return {
         ...data,
