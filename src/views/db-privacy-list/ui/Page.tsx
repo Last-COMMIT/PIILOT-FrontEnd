@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import { Table as TableIcon, AlertTriangle, Lock, Database } from "lucide-react";
 import {
   StatCard,
@@ -70,51 +69,7 @@ const PII_TYPE_OPTIONS = [
 
 const PAGE_SIZE = 20;
 
-/** 테스트용 샘플 행 (URL에 ?mock=1 일 때 API 빈 응답 시 표시) */
-const SAMPLE_ROWS: TableRow[] = [
-  {
-    id: "1",
-    dbConnection: "운영 DB (PostgreSQL)",
-    table: "users",
-    column: "email",
-    type: "이메일",
-    encryption: "보안필요",
-    riskLevel: "높음",
-    scanDateTime: "2026.01.29 02:00",
-  },
-  {
-    id: "2",
-    dbConnection: "운영 DB (PostgreSQL)",
-    table: "customers",
-    column: "phone",
-    type: "전화번호",
-    encryption: "양호",
-    riskLevel: "낮음",
-    scanDateTime: "2026.01.29 02:00",
-  },
-  {
-    id: "3",
-    dbConnection: "운영 DB (PostgreSQL)",
-    table: "orders",
-    column: "delivery_address",
-    type: "주소",
-    encryption: "보안필요",
-    riskLevel: "중간",
-    scanDateTime: "2026.01.28 14:30",
-  },
-];
-
-const SAMPLE_STATS = {
-  totalItems: 42,
-  highRiskItems: 15,
-  encryptionRate: 85.5,
-  totalRecords: 125_000,
-};
-
 export default function DbPrivacyListPage() {
-  const searchParams = useSearchParams();
-  const useMock = searchParams.get("mock") === "1";
-
   const [connections, setConnections] = useState<DbPiiConnection[]>([]);
   const [tables, setTables] = useState<DbPiiTable[]>([]);
   const [rows, setRows] = useState<TableRow[]>([]);
@@ -192,16 +147,9 @@ export default function DbPrivacyListPage() {
         size: PAGE_SIZE,
       });
       if (!res.success) {
-        if (useMock && !append) {
-          setError(null);
-          setRows(SAMPLE_ROWS);
-          setStats(SAMPLE_STATS);
-          setHasNext(false);
-        } else {
-          setError(res.message ?? "컬럼 목록을 불러오지 못했습니다.");
-          if (!append) setRows([]);
-          setHasNext(false);
-        }
+        setError(res.message ?? "컬럼 목록을 불러오지 못했습니다.");
+        if (!append) setRows([]);
+        setHasNext(false);
         return;
       }
       setError(null);
@@ -219,10 +167,6 @@ export default function DbPrivacyListPage() {
           setStats(res.result.stats ?? null);
           const slice = rawContent as { hasNext?: boolean } | undefined;
           setHasNext(Boolean(slice?.hasNext));
-        } else if (useMock && !append) {
-          setRows(SAMPLE_ROWS);
-          setStats(SAMPLE_STATS);
-          setHasNext(false);
         } else {
           if (!append) setRows([]);
           setStats(res.result.stats ?? null);
@@ -230,15 +174,9 @@ export default function DbPrivacyListPage() {
           setHasNext(Boolean(slice?.hasNext));
         }
       } else {
-        if (useMock && !append) {
-          setRows(SAMPLE_ROWS);
-          setStats(SAMPLE_STATS);
-          setHasNext(false);
-        } else {
-          if (!append) setRows([]);
-          setStats(null);
-          setHasNext(false);
-        }
+        if (!append) setRows([]);
+        setStats(null);
+        setHasNext(false);
       }
     },
     [
@@ -248,7 +186,6 @@ export default function DbPrivacyListPage() {
       selectedEncryption,
       selectedRiskLevel,
       appliedSearchQuery,
-      useMock,
     ],
   );
 
