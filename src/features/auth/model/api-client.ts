@@ -16,7 +16,11 @@ async function doRefresh(): Promise<boolean> {
     if (!token) return false;
     const data = await callRefreshToken(token);
     if (data.success && data.result) {
-      saveTokens(data.result.accessToken, data.result.refreshToken);
+      saveTokens(
+        data.result.accessToken,
+        data.result.refreshToken,
+        data.result.role,
+      );
       return true;
     }
     return false;

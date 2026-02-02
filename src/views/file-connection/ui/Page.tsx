@@ -325,9 +325,8 @@ export default function FileConnectionPage() {
     }
   };
 
-  const handleScan = (id: string) => {
+  const handleScan = (_id: string) => {
     // TODO: 파일 스캔 API 연동
-    console.log("스캔", id);
   };
 
   const formatFileSize = (sizeBytes: number): string => {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@/shared/ui";
-import { createNotice } from "../lib/storage";
+import { createNotice } from "@/features/notice";
 import { useIsAdmin } from "../lib/useIsAdmin";
 
 function formatDate(date: Date) {
@@ -20,21 +20,30 @@ export default function NoticeCreatePage() {
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
 
   const canSubmit = title.trim().length > 0 && content.trim().length > 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
       alert("제목과 내용을 입력해주세요.");
       return;
     }
-    const created = createNotice({
+    if (title.trim().length > 100) {
+      alert("제목은 최대 100자까지 입력 가능합니다.");
+      return;
+    }
+    setSaveLoading(true);
+    const res = await createNotice({
       title: title.trim(),
       content: content.trim(),
-      author: isAdmin ? "관리자" : "사용자",
-      createdAt: createdAt || formatDate(new Date()),
     });
-    router.replace(`/notice/${created.id}`);
+    setSaveLoading(false);
+    if (res.success && res.result) {
+      router.replace(`/notice/${res.result.id}`);
+    } else {
+      alert(res.message);
+    }
   };
 
   return (
@@ -78,9 +87,9 @@ export default function NoticeCreatePage() {
               colorScheme="main"
               appearance="solid"
               onClick={handleSave}
-              disabled={!canSubmit}
+              disabled={!canSubmit || saveLoading}
             >
-              저장
+              {saveLoading ? "저장 중…" : "저장"}
             </Button>
           </div>
         </div>

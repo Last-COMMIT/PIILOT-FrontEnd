@@ -1,4 +1,5 @@
 import * as React from "react";
+import Image from "next/image";
 
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -22,6 +23,14 @@ const iconSizeClasses: Record<ConnectionCardIconSize, string> = {
   lg: "size-16",
   xl: "size-20",
   "2xl": "size-24",
+};
+
+const DB_ICON_SIZE: Record<ConnectionCardIconSize, number> = {
+  sm: 32,
+  md: 48,
+  lg: 64,
+  xl: 80,
+  "2xl": 96,
 };
 
 const DB_ICON_SRC: Record<ConnectionDbType, string> = {
@@ -104,10 +113,12 @@ const ConnectionCard = React.forwardRef<HTMLDivElement, ConnectionCardProps>(
     const displayIcon =
       icon ??
       (dbType != null ? (
-        <img
+        <Image
           src={DB_ICON_SRC[dbType]}
           alt=""
-          className="size-full shrink-0 object-contain"
+          width={DB_ICON_SIZE[iconSize]}
+          height={DB_ICON_SIZE[iconSize]}
+          className="shrink-0 object-contain"
           aria-hidden
         />
       ) : null);

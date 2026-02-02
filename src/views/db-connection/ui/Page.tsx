@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Database, CheckCircle2, Table, Columns } from "lucide-react";
 import {
   StatCard,
@@ -35,10 +36,12 @@ const DB_TYPE_OPTIONS = [
     value: "postgresql",
     label: "PostgreSQL",
     icon: (
-      <img
+      <Image
         src="/images/postgresql_icon.png"
         alt=""
-        className="size-5 shrink-0 object-contain"
+        width={20}
+        height={20}
+        className="shrink-0 object-contain"
         aria-hidden
       />
     ),
@@ -47,10 +50,12 @@ const DB_TYPE_OPTIONS = [
     value: "oracle",
     label: "Oracle",
     icon: (
-      <img
+      <Image
         src="/images/oracle_icon.png"
         alt=""
-        className="size-5 shrink-0 object-contain"
+        width={20}
+        height={20}
+        className="shrink-0 object-contain"
         aria-hidden
       />
     ),
@@ -59,10 +64,12 @@ const DB_TYPE_OPTIONS = [
     value: "mysql",
     label: "MySQL",
     icon: (
-      <img
+      <Image
         src="/images/mysql_icon.png"
         alt=""
-        className="size-5 shrink-0 object-contain"
+        width={20}
+        height={20}
+        className="shrink-0 object-contain"
         aria-hidden
       />
     ),
@@ -186,36 +193,40 @@ export default function DbConnectionPage() {
   }, []);
 
   useEffect(() => {
-    loadListAndStats();
+    const id = setTimeout(() => loadListAndStats(), 0);
+    return () => clearTimeout(id);
   }, [loadListAndStats]);
 
   useEffect(() => {
-    if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
-      setDetailForModal(null);
-      return;
-    }
     let cancelled = false;
-    setModalLoading(true);
-    getDbConnectionDetail(Number(editingId)).then((res) => {
-      if (cancelled) return;
-      setModalLoading(false);
-      if (res.success && res.result) {
-        const d = res.result;
-        setDetailForModal(res.result);
-        setFormData({
-          title: d.connectionName,
-          dbType: dbmsTypeNameToDbType(d.dbmsTypeName ?? "PostgreSQL"),
-          host: d.host,
-          port: d.port != null ? String(d.port) : "",
-          databaseName: d.dbName,
-          username: d.username ?? "",
-          password: "",
-          managerName: d.managerName ?? "",
-          managerEmail: d.managerEmail ?? "",
-        });
+    const id = setTimeout(() => {
+      if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
+        setDetailForModal(null);
+        return;
       }
-    });
+      setModalLoading(true);
+      getDbConnectionDetail(Number(editingId)).then((res) => {
+        if (cancelled) return;
+        setModalLoading(false);
+        if (res.success && res.result) {
+          const d = res.result;
+          setDetailForModal(res.result);
+          setFormData({
+            title: d.connectionName,
+            dbType: dbmsTypeNameToDbType(d.dbmsTypeName ?? "PostgreSQL"),
+            host: d.host,
+            port: d.port != null ? String(d.port) : "",
+            databaseName: d.dbName,
+            username: d.username ?? "",
+            password: "",
+            managerName: d.managerName ?? "",
+            managerEmail: d.managerEmail ?? "",
+          });
+        }
+      });
+    }, 0);
     return () => {
+      clearTimeout(id);
       cancelled = true;
     };
   }, [isModalOpen, editingId, isViewMode, isEditMode]);
@@ -366,7 +377,7 @@ export default function DbConnectionPage() {
   };
 
   const handleScan = (id: string) => {
-    console.log("스캔", id);
+    void id; // TODO: DB 스캔 API 연동 (POST /api/db-connections/{connectionId}/scan)
   };
 
   if (loading) {
