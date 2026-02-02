@@ -202,36 +202,42 @@ export default function DbConnectionPage() {
     const id = setTimeout(() => {
       if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
         setDetailForModal(null);
+        setModalLoading(false);
         return;
       }
       setModalLoading(true);
-      getDbConnectionDetail(Number(editingId)).then((res) => {
-        if (cancelled) return;
-        setModalLoading(false);
-        if (res.success && res.result) {
-          const d = res.result;
-          setDetailForModal(res.result);
-          setFormData({
-            title: d.connectionName,
-            dbType: dbmsTypeNameToDbType(d.dbmsTypeName ?? "PostgreSQL"),
-            host: d.host,
-            port: d.port != null ? String(d.port) : "",
-            databaseName: d.dbName,
-            username: d.username ?? "",
-            password: "",
-            managerName: d.managerName ?? "",
-            managerEmail: d.managerEmail ?? "",
-          });
-        } else {
-          setDetailForModal(null);
-          alert(res.message ?? "상세 정보를 불러오는 데 실패했습니다.");
-          setIsModalOpen(false);
-        }
-      });
+      getDbConnectionDetail(Number(editingId))
+        .then((res) => {
+          if (cancelled) return;
+          if (res.success && res.result) {
+            const d = res.result;
+            setDetailForModal(res.result);
+            setFormData({
+              title: d.connectionName,
+              dbType: dbmsTypeNameToDbType(d.dbmsTypeName ?? "PostgreSQL"),
+              host: d.host,
+              port: d.port != null ? String(d.port) : "",
+              databaseName: d.dbName,
+              username: d.username ?? "",
+              password: "",
+              managerName: d.managerName ?? "",
+              managerEmail: d.managerEmail ?? "",
+            });
+          } else {
+            setDetailForModal(null);
+            alert(res.message ?? "상세 정보를 불러오는 데 실패했습니다.");
+            setIsModalOpen(false);
+          }
+          setModalLoading(false);
+        })
+        .catch(() => {
+          if (!cancelled) setModalLoading(false);
+        });
     }, 0);
     return () => {
       clearTimeout(id);
       cancelled = true;
+      setModalLoading(false);
     };
   }, [isModalOpen, editingId, isViewMode, isEditMode]);
 
