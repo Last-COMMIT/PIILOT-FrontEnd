@@ -180,7 +180,11 @@ export default function FileConnectionPage() {
         setModalLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setModalLoading(false);
+        if (!cancelled) {
+          setModalLoading(false);
+          alert("상세 정보를 불러오는 중 오류가 발생했습니다.");
+          setIsModalOpen(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -336,6 +340,7 @@ export default function FileConnectionPage() {
   };
 
   const handleScan = (_id: string) => {
+    alert("스캔 기능은 준비 중입니다.");
     // TODO: 파일 스캔 API 연동
   };
 

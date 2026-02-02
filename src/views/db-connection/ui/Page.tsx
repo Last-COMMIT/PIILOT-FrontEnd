@@ -231,7 +231,11 @@ export default function DbConnectionPage() {
           setModalLoading(false);
         })
         .catch(() => {
-          if (!cancelled) setModalLoading(false);
+          if (!cancelled) {
+            setModalLoading(false);
+            alert("상세 정보를 불러오는 중 오류가 발생했습니다.");
+            setIsModalOpen(false);
+          }
         });
     }, 0);
     return () => {
@@ -387,7 +391,9 @@ export default function DbConnectionPage() {
   };
 
   const handleScan = (id: string) => {
-    void id; // TODO: DB 스캔 API 연동 (POST /api/db-connections/{connectionId}/scan)
+    void id;
+    alert("스캔 기능은 준비 중입니다.");
+    // TODO: DB 스캔 API 연동 (POST /api/db-connections/{connectionId}/scan)
   };
 
   if (loading) {
