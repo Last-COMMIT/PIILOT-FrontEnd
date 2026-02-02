@@ -46,7 +46,26 @@ export function isAuthed(): boolean {
   return safeGetItem(KEY_AUTHED) === "1";
 }
 
-/** 토큰 저장 (로그인/refresh 성공 시). role은 백엔드가 로그인 응답에 포함할 경우 전달 */
+/**
+ * JWT payload에서 role 추출 (백엔드가 응답에 role을 안 넣고 토큰에만 넣은 경우 대비)
+ * 서명 검증은 하지 않고 payload만 읽음.
+ */
+function getRoleFromJwt(token: string): string | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    const parsed = JSON.parse(decoded) as { role?: string };
+    const role = parsed.role;
+    return typeof role === "string" && role !== "" ? role : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 토큰 저장 (로그인/refresh 성공 시). role은 응답에 있으면 사용, 없으면 JWT payload에서 시도 */
 export function saveTokens(
   accessToken: string,
   refreshToken: string,
@@ -55,7 +74,11 @@ export function saveTokens(
   safeSetItem(KEY_AUTHED, "1");
   safeSetItem(KEY_ACCESS_TOKEN, accessToken);
   safeSetItem(KEY_REFRESH_TOKEN, refreshToken);
-  if (role != null && role !== "") safeSetItem(KEY_ROLE, role);
+  const roleToSave =
+    role != null && role !== ""
+      ? role
+      : getRoleFromJwt(accessToken);
+  if (roleToSave != null && roleToSave !== "") safeSetItem(KEY_ROLE, roleToSave);
 }
 
 /** 토큰·인증 정보 제거 (로그아웃/refresh 실패 시) */

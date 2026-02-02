@@ -149,32 +149,46 @@ export default function FileConnectionPage() {
   useEffect(() => {
     if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
       setDetailForModal(null);
+      setModalLoading(false);
       return;
     }
     let cancelled = false;
     setModalLoading(true);
-    getFileConnectionDetail(Number(editingId)).then((res) => {
-      if (cancelled) return;
-      setModalLoading(false);
-      if (res.success && res.result) {
-        const d = res.result;
-        setDetailForModal(res.result);
-        setFormData({
-          title: d.connectionName,
-          serverType: serverTypeNameToType(d.serverTypeName),
-          host: d.host,
-          port: String(d.port ?? ""),
-          basePath: d.defaultPath ?? "",
-          username: d.username ?? "",
-          password: "",
-          managerName: d.managerName ?? "",
-          managerEmail: d.managerEmail ?? "",
-          retentionPeriod: d.retentionPeriodMonths ?? 1,
-        });
-      }
-    });
+    getFileConnectionDetail(Number(editingId))
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.result) {
+          const d = res.result;
+          setDetailForModal(res.result);
+          setFormData({
+            title: d.connectionName,
+            serverType: serverTypeNameToType(d.serverTypeName),
+            host: d.host,
+            port: String(d.port ?? ""),
+            basePath: d.defaultPath ?? "",
+            username: d.username ?? "",
+            password: "",
+            managerName: d.managerName ?? "",
+            managerEmail: d.managerEmail ?? "",
+            retentionPeriod: d.retentionPeriodMonths ?? 1,
+          });
+        } else {
+          setDetailForModal(null);
+          alert(res.message ?? "상세 정보를 불러오는 데 실패했습니다.");
+          setIsModalOpen(false);
+        }
+        setModalLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setModalLoading(false);
+          alert("상세 정보를 불러오는 중 오류가 발생했습니다.");
+          setIsModalOpen(false);
+        }
+      });
     return () => {
       cancelled = true;
+      setModalLoading(false);
     };
   }, [isModalOpen, editingId, isViewMode, isEditMode]);
 
@@ -325,9 +339,9 @@ export default function FileConnectionPage() {
     }
   };
 
-  const handleScan = (id: string) => {
+  const handleScan = (_id: string) => {
+    alert("스캔 기능은 준비 중입니다.");
     // TODO: 파일 스캔 API 연동
-    console.log("스캔", id);
   };
 
   const formatFileSize = (sizeBytes: number): string => {

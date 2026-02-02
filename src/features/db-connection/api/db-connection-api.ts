@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/shared/lib/api";
+import { API_BASE_URL, getApiErrorMessage } from "@/shared/lib/api";
 import { fetchWithAuth } from "@/features/auth/model/api-client";
 import type {
   CreateDbConnectionRequest,
@@ -20,12 +20,10 @@ function errorMessage(
 }
 
 function toErrorResponse<T>(error: unknown): ApiResponse<T> {
-  const message =
-    error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.";
   return {
     success: false,
     code: "",
-    message,
+    message: getApiErrorMessage(error),
     result: null,
     timestamp: "",
   };
@@ -94,7 +92,16 @@ export async function deleteDbConnection(
     const res = await fetchWithAuth(`${BASE}/${connectionId}`, {
       method: "DELETE",
     });
-    const data = (await res.json().catch(() => ({}))) as ApiResponse<null>;
+    const data =
+      res.status === 204
+        ? ({
+            success: true,
+            code: "",
+            message: "",
+            result: null,
+            timestamp: "",
+          } as ApiResponse<null>)
+        : ((await res.json().catch(() => ({}))) as ApiResponse<null>);
     if (!res.ok) {
       return {
         ...data,

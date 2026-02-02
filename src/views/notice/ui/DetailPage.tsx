@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/shared/ui";
-import { deleteNotice, getNoticeById } from "../lib/storage";
 import { useIsAdmin } from "../lib/useIsAdmin";
+import {
+  getNoticeDetail,
+  deleteNotice,
+  type NoticeDetailItem,
+} from "@/features/notice";
+import { formatNoticeDate } from "../lib/format";
 
 interface NoticeDetailPageProps {
   id: string;
@@ -14,29 +19,71 @@ interface NoticeDetailPageProps {
 export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
   const router = useRouter();
   const isAdmin = useIsAdmin();
+  const [notice, setNotice] = useState<NoticeDetailItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const [hydrated, setHydrated] = useState(false);
-  // 하이드레이션 가드를 위해 비동기로 상태 업데이트
   useEffect(() => {
-    setTimeout(() => {
-      setHydrated(true);
+    let cancelled = false;
+    const idTimer = setTimeout(() => {
+      const numId = Number(id);
+      if (Number.isNaN(numId) || numId < 1) {
+        setLoading(false);
+        setError("잘못된 공지사항 ID입니다.");
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      getNoticeDetail(numId).then((res) => {
+        if (cancelled) return;
+        setLoading(false);
+        if (res.success && res.result) {
+          setNotice(res.result);
+        } else {
+          setError(res.message ?? "공지사항을 찾을 수 없습니다.");
+        }
+      });
     }, 0);
-  }, []);
+    return () => {
+      clearTimeout(idTimer);
+      cancelled = true;
+    };
+  }, [id]);
 
-  const notice = useMemo(() => {
-    if (!hydrated) return null;
-    return getNoticeById(id);
-  }, [hydrated, id]);
+  const handleDelete = async () => {
+    if (!notice) return;
+    const ok = window.confirm("공지사항을 삭제할까요?");
+    if (!ok) return;
+    setDeleteLoading(true);
+    const res = await deleteNotice(notice.id);
+    setDeleteLoading(false);
+    if (res.success) {
+      router.replace("/notice");
+    } else {
+      alert(res.message);
+    }
+  };
 
-  if (!hydrated) {
-    return null;
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
+        <div
+          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+          aria-hidden
+        />
+        <p className="text-sm text-[var(--color-sidebar-hover-text)]">
+          로딩 중…
+        </p>
+      </div>
+    );
   }
 
-  if (!notice) {
+  if (error || !notice) {
     return (
       <div className="h-full min-h-0 overflow-hidden flex flex-col p-6">
         <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] p-6 text-sm text-[var(--color-text-light-gray)]">
-          존재하지 않는 공지사항입니다.
+          {error ?? "존재하지 않는 공지사항입니다."}
         </div>
         <div className="mt-4">
           <Link href="/notice">
@@ -49,18 +96,6 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
     );
   }
 
-  const handleDelete = () => {
-    const ok = window.confirm("공지사항을 삭제할까요?");
-    if (!ok) return;
-    try {
-      deleteNotice(notice.id);
-      router.replace("/notice");
-    } catch (error) {
-      console.error("Notice delete failed:", error);
-      alert("공지사항 삭제에 실패했습니다. 다시 시도해주세요.");
-    }
-  };
-
   return (
     <div className="h-full min-h-0 overflow-hidden flex flex-col p-6">
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -70,8 +105,8 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
               {notice.title}
             </h2>
             <div className="mt-2 flex items-center gap-4 text-xs text-[var(--color-text-light-gray)]">
-              <span>작성자: {notice.author}</span>
-              <span>일자: {notice.createdAt}</span>
+              <span>작성자: {notice.authorName}</span>
+              <span>일자: {formatNoticeDate(notice.createdAt)}</span>
             </div>
           </div>
 
@@ -92,8 +127,9 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
                 colorScheme="destructive"
                 appearance="outline"
                 onClick={handleDelete}
+                disabled={deleteLoading}
               >
-                삭제
+                {deleteLoading ? "처리 중…" : "삭제"}
               </Button>
             )}
           </div>
