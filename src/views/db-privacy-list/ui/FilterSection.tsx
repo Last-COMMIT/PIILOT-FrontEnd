@@ -13,6 +13,7 @@ interface FilterSectionProps {
   onSearchQueryChange: (value: string) => void;
   onSearch: () => void;
   onReset: () => void;
+  searchPlaceholder?: string;
   connectionOptions: Option[];
   selectedConnection: string;
   onConnectionChange: (value: string) => void;
@@ -46,6 +47,7 @@ export default function FilterSection({
   onSearchQueryChange,
   onSearch,
   onReset,
+  searchPlaceholder = "파일명 또는 경로 검색...",
   connectionOptions,
   selectedConnection,
   onConnectionChange,
@@ -73,7 +75,7 @@ export default function FilterSection({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
-            placeholder="파일명 또는 경로 검색..."
+            placeholder={searchPlaceholder}
             colorScheme="main"
             className="flex-1"
           />

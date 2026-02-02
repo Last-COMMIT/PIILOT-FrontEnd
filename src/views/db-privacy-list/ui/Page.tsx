@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Table as TableIcon, AlertTriangle, Lock, Database } from "lucide-react";
 import {
   StatCard,
@@ -9,8 +10,28 @@ import {
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import FilterSection from "./FilterSection";
+import {
+  getDbPiiConnections,
+  getDbPiiTables,
+  getDbPiiColumns,
+} from "@/features/db-pii";
+import type { DbPiiConnection, DbPiiTable, DbPiiColumn } from "@/features/db-pii";
+import { formatScanDateTime } from "../lib/format";
 
-interface PrivacyItem extends Record<string, unknown> {
+/** API riskLevel → UI 한글 */
+const riskLevelToLabel: Record<string, "높음" | "중간" | "낮음"> = {
+  HIGH: "높음",
+  MEDIUM: "중간",
+  LOW: "낮음",
+};
+
+/** API encrypted → UI 암호화 라벨 */
+function encryptionLabel(encrypted: boolean): "보안필요" | "양호" {
+  return encrypted ? "양호" : "보안필요";
+}
+
+/** 테이블 행용 (API 컬럼 → UI) */
+interface TableRow extends Record<string, unknown> {
   id: string;
   dbConnection: string;
   table: string;
@@ -21,45 +42,91 @@ interface PrivacyItem extends Record<string, unknown> {
   scanDateTime: string;
 }
 
+function columnToRow(c: DbPiiColumn): TableRow {
+  return {
+    id: String(c.id),
+    dbConnection: c.connectionName,
+    table: c.tableName,
+    column: c.columnName,
+    type: c.piiTypeName,
+    encryption: encryptionLabel(c.encrypted),
+    riskLevel: riskLevelToLabel[c.riskLevel] ?? "낮음",
+    scanDateTime: formatScanDateTime(c.lastScannedAt),
+  };
+}
 
-const generatePrivacyItems = (): PrivacyItem[] => {
-  const items: PrivacyItem[] = [];
-  const connections = [
-    "운영 DB (PostgreSQL)",
-    "레거시 시스템 (Oracle)",
-    "고객 DB (MySQL)",
-  ];
-  const tables = ["users", "payments", "customer_backup"];
-  const columns = [
-    "full_name",
-    "phone_number",
-    "ssn",
-    "mobile",
-    "email",
-    "address",
-  ];
-  const types = ["이름", "전화번호", "주민등록번호", "이메일", "주소"];
-  const encryptions: Array<"보안필요" | "양호"> = ["보안필요", "양호"];
-  const riskLevels: Array<"높음" | "중간" | "낮음"> = ["높음", "중간", "낮음"];
+/** PII 유형 필터 옵션 (API 코드 ↔ 한글) */
+const PII_TYPE_OPTIONS = [
+  { value: "all", label: "모든 유형" },
+  { value: "NM", label: "이름" },
+  { value: "EM", label: "이메일" },
+  { value: "PH", label: "전화번호" },
+  { value: "RRN", label: "주민등록번호" },
+  { value: "ADD", label: "주소" },
+  { value: "IP", label: "IP" },
+  { value: "ACN", label: "계좌번호" },
+  { value: "PP", label: "기타" },
+];
 
-  for (let i = 1; i <= 200; i++) {
-    items.push({
-      id: i.toString(),
-      dbConnection: connections[(i - 1) % connections.length],
-      table: tables[(i - 1) % tables.length],
-      column: columns[(i - 1) % columns.length],
-      type: types[(i - 1) % types.length],
-      encryption: encryptions[(i - 1) % encryptions.length],
-      riskLevel: riskLevels[(i - 1) % riskLevels.length],
-      scanDateTime: `01/${18 + (i % 2)} ${String(10 + (i % 12)).padStart(2, "0")}:${String((i * 10) % 60).padStart(2, "0")}`,
-    });
-  }
-  return items;
+const PAGE_SIZE = 20;
+
+/** 테스트용 샘플 행 (URL에 ?mock=1 일 때 API 빈 응답 시 표시) */
+const SAMPLE_ROWS: TableRow[] = [
+  {
+    id: "1",
+    dbConnection: "운영 DB (PostgreSQL)",
+    table: "users",
+    column: "email",
+    type: "이메일",
+    encryption: "보안필요",
+    riskLevel: "높음",
+    scanDateTime: "2026.01.29 02:00",
+  },
+  {
+    id: "2",
+    dbConnection: "운영 DB (PostgreSQL)",
+    table: "customers",
+    column: "phone",
+    type: "전화번호",
+    encryption: "양호",
+    riskLevel: "낮음",
+    scanDateTime: "2026.01.29 02:00",
+  },
+  {
+    id: "3",
+    dbConnection: "운영 DB (PostgreSQL)",
+    table: "orders",
+    column: "delivery_address",
+    type: "주소",
+    encryption: "보안필요",
+    riskLevel: "중간",
+    scanDateTime: "2026.01.28 14:30",
+  },
+];
+
+const SAMPLE_STATS = {
+  totalItems: 42,
+  highRiskItems: 15,
+  encryptionRate: 85.5,
+  totalRecords: 125_000,
 };
 
 export default function DbPrivacyListPage() {
-  const [privacyItems] = useState<PrivacyItem[]>(generatePrivacyItems());
-  
+  const searchParams = useSearchParams();
+  const useMock = searchParams.get("mock") === "1";
+
+  const [connections, setConnections] = useState<DbPiiConnection[]>([]);
+  const [tables, setTables] = useState<DbPiiTable[]>([]);
+  const [rows, setRows] = useState<TableRow[]>([]);
+  const [stats, setStats] = useState<{
+    totalItems: number;
+    highRiskItems: number;
+    encryptionRate: number;
+    totalRecords: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [selectedConnection, setSelectedConnection] = useState("all");
@@ -67,98 +134,154 @@ export default function DbPrivacyListPage() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedEncryption, setSelectedEncryption] = useState("all");
   const [selectedRiskLevel, setSelectedRiskLevel] = useState("all");
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
 
-  const connectionOptions = useMemo(() => {
-    const unique = Array.from(
-      new Set(privacyItems.map((i) => i.dbConnection).filter(Boolean)),
-    );
-    return [
-      { value: "all", label: "모든 커넥션" },
-      ...unique.map((v) => ({ value: v, label: v })),
-    ];
-  }, [privacyItems]);
+  const connectionOptions = [
+    { value: "all", label: "모든 커넥션" },
+    ...connections.map((c) => ({
+      value: String(c.id),
+      label: `${c.connectionName} (${c.dbmsTypeName})`,
+    })),
+  ];
 
-  const tableOptions = useMemo(() => {
-    const unique = Array.from(
-      new Set(privacyItems.map((i) => i.table).filter(Boolean)),
-    );
-    return [
-      { value: "all", label: "모든 테이블" },
-      ...unique.map((v) => ({ value: v, label: v })),
-    ];
-  }, [privacyItems]);
+  const tableOptions = [
+    { value: "all", label: "모든 테이블" },
+    ...tables.map((t) => ({ value: String(t.id), label: t.tableName })),
+  ];
 
-  const typeOptions = useMemo(() => {
-    const unique = Array.from(
-      new Set(privacyItems.map((i) => i.type).filter(Boolean)),
-    );
-    return [
-      { value: "all", label: "모든 유형" },
-      ...unique.map((v) => ({ value: v, label: v })),
-    ];
-  }, [privacyItems]);
+  const loadConnections = useCallback(async () => {
+    const res = await getDbPiiConnections();
+    if (res.success && res.result) {
+      setConnections(res.result);
+      setError(null);
+    } else if (!res.success) {
+      setError(res.message ?? "커넥션 목록을 불러오지 못했습니다.");
+    }
+  }, []);
 
-  const filteredItems = useMemo(() => {
-    return privacyItems.filter((item) => {
-      if (appliedSearchQuery) {
-        const query = appliedSearchQuery.toLowerCase();
-        if (
-          !item.table.toLowerCase().includes(query) &&
-          !item.column.toLowerCase().includes(query) &&
-          !item.dbConnection.toLowerCase().includes(query)
-        ) {
-          return false;
+  const loadTables = useCallback(async (connectionId: number) => {
+    const res = await getDbPiiTables(connectionId);
+    if (res.success && res.result) setTables(res.result);
+    else setTables([]);
+  }, []);
+
+  const loadColumns = useCallback(
+    async (pageNum: number, append: boolean) => {
+      const connectionId =
+        selectedConnection === "all" ? undefined : Number(selectedConnection);
+      const tableId =
+        selectedTable === "all" ? undefined : Number(selectedTable);
+      const piiType = selectedType === "all" ? undefined : selectedType;
+      const encrypted =
+        selectedEncryption === "all"
+          ? undefined
+          : selectedEncryption === "good";
+      const riskLevel =
+        selectedRiskLevel === "all"
+          ? undefined
+          : (selectedRiskLevel.toUpperCase() as "HIGH" | "MEDIUM" | "LOW");
+      const res = await getDbPiiColumns({
+        connectionId,
+        tableId,
+        piiType,
+        encrypted,
+        riskLevel,
+        keyword: appliedSearchQuery || undefined,
+        page: pageNum,
+        size: PAGE_SIZE,
+      });
+      if (!res.success) {
+        if (useMock && !append) {
+          setError(null);
+          setRows(SAMPLE_ROWS);
+          setStats(SAMPLE_STATS);
+          setHasNext(false);
+        } else {
+          setError(res.message ?? "컬럼 목록을 불러오지 못했습니다.");
+          if (!append) setRows([]);
+          setHasNext(false);
+        }
+        return;
+      }
+      setError(null);
+      if (res.result) {
+        const rawContent = res.result.content;
+        const contentArray = Array.isArray(rawContent)
+          ? rawContent
+          : (rawContent as { content?: DbPiiColumn[] } | undefined)?.content;
+        const list = Array.isArray(contentArray)
+          ? contentArray.map(columnToRow)
+          : [];
+        if (list.length > 0) {
+          if (append) setRows((prev) => [...prev, ...list]);
+          else setRows(list);
+          setStats(res.result.stats ?? null);
+          const slice = rawContent as { hasNext?: boolean } | undefined;
+          setHasNext(Boolean(slice?.hasNext));
+        } else if (useMock && !append) {
+          setRows(SAMPLE_ROWS);
+          setStats(SAMPLE_STATS);
+          setHasNext(false);
+        } else {
+          if (!append) setRows([]);
+          setStats(res.result.stats ?? null);
+          const slice = rawContent as { hasNext?: boolean } | undefined;
+          setHasNext(Boolean(slice?.hasNext));
+        }
+      } else {
+        if (useMock && !append) {
+          setRows(SAMPLE_ROWS);
+          setStats(SAMPLE_STATS);
+          setHasNext(false);
+        } else {
+          if (!append) setRows([]);
+          setStats(null);
+          setHasNext(false);
         }
       }
-      if (selectedConnection !== "all" && item.dbConnection !== selectedConnection) {
-        return false;
-      }
-      if (selectedTable !== "all" && item.table !== selectedTable) {
-        return false;
-      }
-      if (selectedType !== "all" && item.type !== selectedType) {
-        return false;
-      }
-      if (selectedEncryption === "secure" && item.encryption !== "보안필요") {
-        return false;
-      }
-      if (selectedEncryption === "good" && item.encryption !== "양호") {
-        return false;
-      }
-      if (selectedRiskLevel === "high" && item.riskLevel !== "높음") {
-        return false;
-      }
-      if (selectedRiskLevel === "medium" && item.riskLevel !== "중간") {
-        return false;
-      }
-      if (selectedRiskLevel === "low" && item.riskLevel !== "낮음") {
-        return false;
-      }
-      return true;
-    });
-  }, [
-    privacyItems,
-    appliedSearchQuery,
-    selectedConnection,
-    selectedTable,
-    selectedType,
-    selectedEncryption,
-    selectedRiskLevel,
-  ]);
+    },
+    [
+      selectedConnection,
+      selectedTable,
+      selectedType,
+      selectedEncryption,
+      selectedRiskLevel,
+      appliedSearchQuery,
+      useMock,
+    ],
+  );
 
-  const totalItems = filteredItems.length;
-  const highRiskItems = filteredItems.filter((item) => item.riskLevel === "높음")
-    .length;
-  const encryptedItems = filteredItems.filter(
-    (item) => item.encryption === "양호",
-  ).length;
-  const encryptionRate =
-    totalItems === 0 ? 0 : Math.round((encryptedItems / totalItems) * 100);
-  const totalRecords = 626500;
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadConnections();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [loadConnections]);
 
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSelectedTable("all");
+      if (selectedConnection === "all") {
+        setTables([]);
+        return;
+      }
+      loadTables(Number(selectedConnection));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [selectedConnection, loadTables]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setLoading(true);
+      loadColumns(0, false).finally(() => setLoading(false));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [loadColumns]);
 
   const handleSearch = () => {
     setAppliedSearchQuery(searchQuery);
+    setPage(0);
   };
 
   const handleReset = () => {
@@ -169,29 +292,26 @@ export default function DbPrivacyListPage() {
     setSelectedType("all");
     setSelectedEncryption("all");
     setSelectedRiskLevel("all");
+    setPage(0);
   };
 
-  const columns: TableColumn<PrivacyItem>[] = [
-    {
-      id: "dbConnection",
-      label: "DB 연결",
-      width: "2fr",
-    },
-    {
-      id: "table",
-      label: "테이블",
-      width: "1.5fr",
-    },
-    {
-      id: "column",
-      label: "컬럼",
-      width: "1.5fr",
-    },
-    {
-      id: "type",
-      label: "유형",
-      width: "1.5fr",
-    },
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    setLoading(true);
+    loadColumns(nextPage, true).finally(() => setLoading(false));
+  };
+
+  const totalItems = stats?.totalItems ?? 0;
+  const highRiskItems = stats?.highRiskItems ?? 0;
+  const encryptionRate = stats?.encryptionRate ?? 0;
+  const totalRecords = stats?.totalRecords ?? 0;
+
+  const columns: TableColumn<TableRow>[] = [
+    { id: "dbConnection", label: "DB 연결", width: "2fr" },
+    { id: "table", label: "테이블", width: "1.5fr" },
+    { id: "column", label: "컬럼", width: "1.5fr" },
+    { id: "type", label: "유형", width: "1.5fr" },
     {
       id: "encryption",
       label: "암호화",
@@ -236,13 +356,16 @@ export default function DbPrivacyListPage() {
         );
       },
     },
-    {
-      id: "scanDateTime",
-      label: "스캔일시",
-      width: "1.5fr",
-      align: "left",
-    },
+    { id: "scanDateTime", label: "스캔일시", width: "1.5fr", align: "left" },
   ];
+
+  if (error && rows.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
+        <p className="text-[var(--color-coral-text)]">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col p-6 gap-5 overflow-hidden">
@@ -261,7 +384,7 @@ export default function DbPrivacyListPage() {
         />
         <StatCard
           title="암호화율"
-          value={`${encryptionRate}%`}
+          value={`${typeof encryptionRate === "number" ? encryptionRate.toFixed(1) : encryptionRate}%`}
           icon={<Lock className="size-5" />}
           colorScheme="purple"
         />
@@ -279,13 +402,14 @@ export default function DbPrivacyListPage() {
           onSearchQueryChange={setSearchQuery}
           onSearch={handleSearch}
           onReset={handleReset}
+          searchPlaceholder="컬럼명·테이블명 검색"
           connectionOptions={connectionOptions}
           selectedConnection={selectedConnection}
           onConnectionChange={setSelectedConnection}
           tableOptions={tableOptions}
           selectedTable={selectedTable}
           onTableChange={setSelectedTable}
-          typeOptions={typeOptions}
+          typeOptions={PII_TYPE_OPTIONS}
           selectedType={selectedType}
           onTypeChange={setSelectedType}
           selectedEncryption={selectedEncryption}
@@ -295,13 +419,45 @@ export default function DbPrivacyListPage() {
         />
 
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <Table
-            columns={columns}
-            data={filteredItems}
-            scrollable
-            maxBodyHeight="100%"
-            className="h-full"
-          />
+          {loading && rows.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-white">
+              <div
+                className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+                aria-label="로딩 중"
+              />
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-white/70 text-center px-4">
+              {selectedConnection !== "all"
+                ? "선택한 연결에 스캔 결과가 없습니다."
+                : "스캔된 PII 컬럼이 없습니다."}
+              <span className="text-sm">
+                DB 연결 관리에서 스캔을 실행한 뒤 다시 조회해 주세요.
+              </span>
+            </div>
+          ) : (
+            <>
+              <Table
+                columns={columns}
+                data={rows}
+                scrollable
+                maxBodyHeight="100%"
+                className="h-full"
+              />
+              {hasNext && (
+                <div className="shrink-0 pt-3 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleLoadMore}
+                    disabled={loading}
+                    className="px-4 py-2 rounded-md border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] text-white text-sm hover:opacity-90 disabled:opacity-50"
+                  >
+                    {loading ? "로딩 중..." : "더보기"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
