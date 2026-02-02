@@ -1,60 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import { Modal } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
+import { getDbPiiIssueDetail } from "@/features/db-pii";
+import type { DbPiiIssueDetail } from "@/features/db-pii";
+import { formatDetectedAt } from "../lib/format";
 
 type RiskLevel = "높음" | "중간" | "낮음";
 
-interface UnencryptedData extends Record<string, unknown> {
-  id: string;
-  user_id: number;
-  email: string;
-}
-
-interface IssueColumn {
-  id: string;
-  columnName: string;
-  personalInfoType: string;
-  recordCount: number;
-  riskLevel: RiskLevel;
-}
-
-interface TableIssue {
-  id: string;
-  tableName: string;
-  dbConnection: string;
-  manager: string;
-  issueCount: number;
-  columns: IssueColumn[];
-}
-
-interface IssueDetailModalProps {
-  open: boolean;
-  onClose: () => void;
-  issue: TableIssue;
-  column: IssueColumn | null;
-}
-
-const generateUnencryptedData = (issue: TableIssue): UnencryptedData[] => {
-  void issue;
-  return [
-    { id: "0", user_id: 0, email: "honggildong@naver.com" },
-    { id: "1", user_id: 1, email: "minsu.kim@gmail.com" },
-    { id: "2", user_id: 2, email: "jiyoon.lee@hanmail.net" },
-    { id: "3", user_id: 3, email: "yuna.park@gmail.com" },
-    { id: "4", user_id: 4, email: "seojun95@naver.com" },
-    { id: "5", user_id: 5, email: "hyejin.k@daum.net" },
-    { id: "6", user_id: 6, email: "chulsoo123@gmail.com" },
-    { id: "7", user_id: 7, email: "bora_lee@naver.com" },
-    { id: "8", user_id: 8, email: "junyoung.kim@gmail.com" },
-    { id: "9", user_id: 9, email: "somin88@hanmail.net" },
-  ];
+const riskLevelToLabel: Record<string, RiskLevel> = {
+  HIGH: "높음",
+  MEDIUM: "중간",
+  LOW: "낮음",
 };
 
-const getRiskLevelColor = (riskLevel: RiskLevel): string => {
-  switch (riskLevel) {
+const getRiskLevelColor = (riskLevel: string): string => {
+  const label = riskLevelToLabel[riskLevel] ?? riskLevel;
+  switch (label) {
     case "높음":
       return "text-[var(--color-coral-text)]";
     case "중간":
@@ -66,78 +30,106 @@ const getRiskLevelColor = (riskLevel: RiskLevel): string => {
   }
 };
 
+interface IssueDetailModalProps {
+  open: boolean;
+  onClose: () => void;
+  issueId: number | null;
+}
+
 export default function IssueDetailModal({
   open,
   onClose,
-  issue,
-  column,
+  issueId,
 }: IssueDetailModalProps) {
-  const unencryptedData = useMemo(
-    () => generateUnencryptedData(issue),
-    [issue],
-  );
+  const [detail, setDetail] = useState<DbPiiIssueDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedColumn = column ?? issue.columns[0];
+  useEffect(() => {
+    let cancelled = false;
+    if (!open || issueId == null) {
+      const id = setTimeout(() => {
+        if (cancelled) return;
+        setDetail(null);
+        setError(null);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+    const id = setTimeout(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+    }, 0);
+    getDbPiiIssueDetail(issueId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.result) {
+          setDetail(res.result);
+          setError(null);
+        } else {
+          setDetail(null);
+          setError(res.message ?? "상세 정보를 불러오지 못했습니다.");
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDetail(null);
+        setError("상세 정보를 불러오는 중 오류가 발생했습니다.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [open, issueId]);
 
-  // 담당자 이메일 매핑 (실제로는 API에서 가져올 데이터)
-  const managerEmailMap: Record<string, string> = {
-    "홍길동 대리": "honggildong@naver.com",
-    "김철수 대리": "chulsoo123@gmail.com",
-    "이순신 과장": "sunsin.lee@naver.com",
-    "박영희 대리": "younghee.park@example.com",
-    "최민수 과장": "minsu.choi@example.com",
-  };
+  const riskLevelLabel = detail
+    ? riskLevelToLabel[detail.riskLevel] ?? detail.riskLevel
+    : "";
 
-  const managerEmail = managerEmailMap[issue.manager] || "unknown@example.com";
+  const firstGridFields = detail
+    ? [
+        { label: "테이블 명", value: detail.tableName },
+        { label: "컬럼명", value: detail.columnName },
+        { label: "개인정보 유형", value: detail.piiTypeName },
+        {
+          label: "위험도",
+          value: riskLevelLabel,
+          className: cn(
+            "font-semibold text-sm",
+            getRiskLevelColor(detail.riskLevel),
+          ),
+        },
+      ]
+    : [];
 
-  // 첫 번째 그리드 필드 정의
-  const firstGridFields = [
-    {
-      label: "테이블 명",
-      value: issue.tableName,
-    },
-    {
-      label: "컬럼명",
-      value: selectedColumn.columnName,
-    },
-    {
-      label: "개인정보 유형",
-      value: selectedColumn.personalInfoType,
-    },
-    {
-      label: "위험도",
-      value: selectedColumn.riskLevel,
-      className: cn(
-        "font-semibold text-sm",
-        getRiskLevelColor(selectedColumn.riskLevel),
-      ),
-    },
-  ];
+  const secondGridFields = detail
+    ? [
+        {
+          label: "보안필요 레코드 수 / 총 레코드 수",
+          value: `${detail.unencryptedCount.toLocaleString()}건 / ${detail.totalRecordsCount.toLocaleString()}건`,
+          className: "tabular-nums",
+        },
+        {
+          label: "스캔 일시",
+          value: formatDetectedAt(detail.detectedAt),
+        },
+      ]
+    : [];
 
-  // 두 번째 그리드 필드 정의
-  const secondGridFields = [
-    {
-      label: "보안필요 레코드 수 / 총 레코드 수",
-      value: `100건 / ${selectedColumn.recordCount.toLocaleString()}건`,
-      className: "tabular-nums",
-    },
-    {
-      label: "스캔 일시",
-      value: "2025.01.13 19:30",
-    },
-  ];
+  const thirdGridFields = detail
+    ? [
+        { label: "담당자", value: detail.managerName },
+        { label: "담당자 이메일", value: detail.managerEmail },
+      ]
+    : [];
 
-  // 세 번째 그리드 필드 정의
-  const thirdGridFields = [
-    {
-      label: "담당자",
-      value: issue.manager,
-    },
-    {
-      label: "담당자 이메일",
-      value: managerEmail,
-    },
-  ];
+  const records = detail?.unencryptedRecords ?? [];
 
   return (
     <Modal
@@ -148,112 +140,138 @@ export default function IssueDetailModal({
       className="max-w-5xl !max-h-[80vh]"
     >
       <div className="flex flex-col gap-5 px-4 py-2">
-        <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-coral-bg)]/15 border border-[var(--color-coral-border)]">
-          <Lock className="size-5 shrink-0 text-[var(--color-coral-text)] mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-[var(--color-coral-text)] mb-1">
-              암호화되지 않은 개인정보
-            </p>
-            <p className="text-sm text-[var(--color-text-light-gray)]">
-              이 컬럼의 개인정보는 평문으로 저장되어 있어 보안 위험이 있습니다.
-              즉시 암호화 조치가 필요합니다.
-            </p>
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-white">
+            <div
+              className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+              aria-label="로딩 중"
+            />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-8">
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-white text-center">
-              암호화되지 않은 데이터 목록
-            </h3>
-            <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-[var(--color-sidebar-bg)]">
-                  <tr className="text-[var(--color-text-light-gray)]">
-                    <th className="px-4 py-3 text-left border-b border-r border-[var(--color-content-border)] w-[110px]">
-                      user_id
-                    </th>
-                    <th className="px-4 py-3 text-left border-b border-[var(--color-content-border)]">
-                      email
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unencryptedData.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-[var(--color-content-border)] last:border-b-0"
-                    >
-                      <td className="px-4 py-3 text-white border-r border-[var(--color-content-border)] tabular-nums">
-                        {row.user_id}
-                      </td>
-                      <td className="px-4 py-3 text-white">{row.email}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        ) : error ? (
+          <p className="py-6 text-center text-[var(--color-coral-text)]">
+            {error}
+          </p>
+        ) : detail ? (
+          <>
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-coral-bg)]/15 border border-[var(--color-coral-border)]">
+              <Lock className="size-5 shrink-0 text-[var(--color-coral-text)] mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[var(--color-coral-text)] mb-1">
+                  암호화되지 않은 개인정보
+                </p>
+                <p className="text-sm text-[var(--color-text-light-gray)]">
+                  이 컬럼의 개인정보는 평문으로 저장되어 있어 보안 위험이 있습니다.
+                  즉시 암호화 조치가 필요합니다.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-col pt-[30px] pb-6">
-            <div className="space-y-7">
-              <div>
-                <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                  DB 연결
-                </p>
-                <p className="text-white font-semibold text-sm">
-                  {issue.dbConnection}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7">
-                {firstGridFields.map((field, index) => (
-                  <div key={index}>
-                    <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                      {field.label}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-white font-semibold text-sm",
-                        field.className,
+            <div className="grid grid-cols-2 gap-8">
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold text-white text-center">
+                  암호화되지 않은 데이터 목록
+                </h3>
+                <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-[var(--color-sidebar-bg)]">
+                      <tr className="text-[var(--color-text-light-gray)]">
+                        <th className="px-4 py-3 text-left border-b border-r border-[var(--color-content-border)] w-[110px]">
+                          primaryKey
+                        </th>
+                        <th className="px-4 py-3 text-left border-b border-[var(--color-content-border)]">
+                          value
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={2}
+                            className="px-4 py-6 text-center text-[var(--color-text-light-gray)]"
+                          >
+                            비암호화 데이터가 없습니다.
+                          </td>
+                        </tr>
+                      ) : (
+                        records.map((row, idx) => (
+                          <tr
+                            key={idx}
+                            className="border-b border-[var(--color-content-border)] last:border-b-0"
+                          >
+                            <td className="px-4 py-3 text-white border-r border-[var(--color-content-border)] tabular-nums">
+                              {row.primaryKey}
+                            </td>
+                            <td className="px-4 py-3 text-white">{row.value}</td>
+                          </tr>
+                        ))
                       )}
-                    >
-                      {field.value}
-                    </p>
-                  </div>
-                ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7">
-                {secondGridFields.map((field, index) => (
-                  <div key={index}>
+
+              <div className="flex flex-col pt-[30px] pb-6">
+                <div className="space-y-7">
+                  <div>
                     <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                      {field.label}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-white font-semibold text-sm",
-                        field.className,
-                      )}
-                    >
-                      {field.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7">
-                {thirdGridFields.map((field, index) => (
-                  <div key={index}>
-                    <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                      {field.label}
+                      DB 연결
                     </p>
                     <p className="text-white font-semibold text-sm">
-                      {field.value}
+                      {detail.connectionName} ({detail.dbmsTypeName})
                     </p>
                   </div>
-                ))}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+                    {firstGridFields.map((field, index) => (
+                      <div key={index}>
+                        <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                          {field.label}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-white font-semibold text-sm",
+                            field.className,
+                          )}
+                        >
+                          {field.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+                    {secondGridFields.map((field, index) => (
+                      <div key={index}>
+                        <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                          {field.label}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-white font-semibold text-sm",
+                            field.className,
+                          )}
+                        >
+                          {field.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+                    {thirdGridFields.map((field, index) => (
+                      <div key={index}>
+                        <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                          {field.label}
+                        </p>
+                        <p className="text-white font-semibold text-sm">
+                          {field.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        ) : null}
       </div>
     </Modal>
   );
