@@ -54,8 +54,9 @@ function getRoleFromJwt(token: string): string | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const payload = parts[1];
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const decoded = atob(padded);
     const parsed = JSON.parse(decoded) as { role?: string };
     const role = parsed.role;
     return typeof role === "string" && role !== "" ? role : null;

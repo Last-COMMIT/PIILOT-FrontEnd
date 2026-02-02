@@ -171,6 +171,10 @@ export default function FileConnectionPage() {
           managerEmail: d.managerEmail ?? "",
           retentionPeriod: d.retentionPeriodMonths ?? 1,
         });
+      } else {
+        setDetailForModal(null);
+        alert(res.message ?? "상세 정보를 불러오는 데 실패했습니다.");
+        setIsModalOpen(false);
       }
     });
     return () => {

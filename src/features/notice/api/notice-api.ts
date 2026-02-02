@@ -118,7 +118,16 @@ export async function deleteNotice(
     const res = await fetchWithAuth(`${ADMIN_BASE}/${noticeId}`, {
       method: "DELETE",
     });
-    const data = (await res.json().catch(() => ({}))) as ApiResponse<null>;
+    const data =
+      res.status === 204
+        ? ({
+            success: true,
+            code: "",
+            message: "",
+            result: null,
+            timestamp: "",
+          } as ApiResponse<null>)
+        : ((await res.json().catch(() => ({}))) as ApiResponse<null>);
     if (!res.ok) {
       return {
         ...data,

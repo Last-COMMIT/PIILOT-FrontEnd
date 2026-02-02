@@ -1,6 +1,8 @@
 /**
  * API ISO 날짜 문자열을 화면 표시용으로 포맷
  * "2026-02-02T10:54:40.740038" → "2026.02.02 10:54"
+ * 참고: 타임존 없이 오면 new Date()는 로컬 시간으로 해석합니다.
+ * 백엔드가 UTC(Z) 또는 ±HH:MM을 보내는지, KST로 변환해 보내는지 API 계약 확인 후 필요 시 변환/주석 보완.
  */
 export function formatNoticeDate(isoString: string): string {
   if (!isoString || typeof isoString !== "string") return "";
