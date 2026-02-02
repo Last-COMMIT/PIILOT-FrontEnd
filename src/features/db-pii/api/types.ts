@@ -69,3 +69,90 @@ export interface ApiResponse<T> {
   result: T | null;
   timestamp: string;
 }
+
+// --- 6. DB 개인정보 이슈 API ---
+
+/** 6-1. 이슈 목록 한 건 (테이블 그룹 내) */
+export interface DbPiiIssueItem {
+  issueId: number;
+  columnName: string;
+  piiTypeName: string;
+  piiTypeCode: string;
+  totalRecordsCount: number;
+  riskLevel: "HIGH" | "MEDIUM" | "LOW";
+  userStatus: "ISSUE" | "RUNNING" | "DONE";
+  detectedAt: string;
+}
+
+/** 6-1. 테이블별 이슈 그룹 */
+export interface DbPiiIssueTableGroup {
+  tableId: number;
+  tableName: string;
+  connectionName: string;
+  dbmsTypeName: string;
+  issueCount: number;
+  issues: DbPiiIssueItem[];
+}
+
+/** 6-1. 이슈 목록 stats */
+export interface DbPiiIssuesStats {
+  totalIssues: number;
+  highRiskCount: number;
+  mediumRiskCount: number;
+  lowRiskCount: number;
+  totalRecords: number;
+}
+
+/** 6-1. 이슈 목록 content (Slice) */
+export interface DbPiiIssuesContent {
+  content: DbPiiIssueTableGroup[];
+  pageable: { pageNumber: number; pageSize: number };
+  first: boolean;
+  last: boolean;
+  hasNext: boolean;
+  numberOfElements: number;
+}
+
+/** 6-1. 이슈 목록 result */
+export interface DbPiiIssuesResult {
+  stats: DbPiiIssuesStats;
+  content: DbPiiIssuesContent;
+}
+
+/** 6-2. 이슈 상세 (비암호화 데이터 포함) */
+export interface DbPiiUnencryptedRecord {
+  primaryKey: string;
+  value: string;
+}
+
+export interface DbPiiIssueDetail {
+  issueId: number;
+  connectionName: string;
+  dbmsTypeName: string;
+  tableName: string;
+  columnName: string;
+  piiTypeName: string;
+  piiTypeCode: string;
+  totalRecordsCount: number;
+  encRecordsCount: number;
+  unencryptedCount: number;
+  riskLevel: string;
+  userStatus: string;
+  issueStatus: string;
+  detectedAt: string;
+  managerName: string;
+  managerEmail: string;
+  unencryptedRecords: DbPiiUnencryptedRecord[];
+}
+
+/** 6-3. 작업 상태 변경 요청 */
+export interface DbPiiIssueStatusRequest {
+  userStatus: "ISSUE" | "RUNNING" | "DONE";
+}
+
+/** 6-3. 작업 상태 변경 응답 */
+export interface DbPiiIssueStatusResult {
+  issueId: number;
+  userStatus: string;
+  updatedAt: string;
+}
