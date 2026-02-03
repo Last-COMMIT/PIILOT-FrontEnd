@@ -86,6 +86,26 @@ export interface FileConnectionStatsResponse {
   totalFileSize: number;
 }
 
+/** 4-1. 파일 서버 스캔 시작 응답 (202 Accepted) */
+export interface FileConnectionScanStartResult {
+  scanHistoryId: number;
+  connectionId: number;
+  status: "IN_PROGRESS";
+  scanStartTime: string;
+}
+
+/** 4-2. 파일 서버 스캔 상태 조회 응답 */
+export interface FileConnectionScanStatusResult {
+  scanHistoryId: number;
+  connectionId: number;
+  status: "IN_PROGRESS" | "COMPLETED" | "FAILED";
+  scanStartTime: string;
+  scanEndTime: string | null;
+  totalFilesCount: number;
+  totalFileSize: number;
+  scannedFilesCount: number;
+}
+
 /** API 공통 응답 래퍼 */
 export interface ApiResponse<T> {
   success: boolean;
