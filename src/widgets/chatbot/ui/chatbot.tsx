@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { Bot, X, Send } from "lucide-react";
+import { sendChatMessage } from "@/features/chatbot";
 
 const INITIAL_MESSAGE = `안녕하세요! PIILOT AI 어시스턴트입니다.
 개인정보 보호와 관련된 질문이 있으시면
@@ -13,23 +14,14 @@ export function Chatbot() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const [messages, setMessages] = React.useState<
-    Array<{ role: "ai" | "user"; text: string }>
+    Array<{ role: "ai" | "user"; text: string; sources?: string[] }>
   >([{ role: "ai", text: INITIAL_MESSAGE }]);
   const [input, setInput] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const responseTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
-  React.useEffect(() => {
-    return () => {
-      if (responseTimeoutRef.current !== null) {
-        clearTimeout(responseTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,26 +30,47 @@ export function Chatbot() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
-    if (responseTimeoutRef.current !== null) {
-      clearTimeout(responseTimeoutRef.current);
-      responseTimeoutRef.current = null;
-    }
+    if (!trimmed || isLoading) return;
+
+    // 사용자 메시지 추가
     setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
     setInput("");
-    // TODO: 실제 AI API 연동 시 여기서 요청 후 응답 메시지 추가
-    responseTimeoutRef.current = setTimeout(() => {
-      responseTimeoutRef.current = null;
+    setIsLoading(true);
+
+    try {
+      const response = await sendChatMessage({ question: trimmed });
+      if (response.success && response.result) {
+        const result = response.result;
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            text: result.answer,
+            sources: result.sources,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            text: response.message || "응답을 받는 중 오류가 발생했습니다.",
+          },
+        ]);
+      }
+    } catch (error) {
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          text: "질문해 주셔서 감사합니다. AI 응답 연동 후 답변을 드리겠습니다.",
+          text: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
         },
       ]);
-    }, 500);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -124,24 +137,38 @@ export function Chatbot() {
               <div
                 key={i}
                 className={cn(
-                  "mb-4 flex gap-2",
-                  msg.role === "user" && "flex-row-reverse",
+                  "mb-5 flex flex-col gap-2.5",
+                  msg.role === "user" && "items-end",
                 )}
               >
-                {msg.role === "ai" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-main-bg)]/20">
-                    <Bot className="h-4 w-4 text-[var(--color-main-text)]" />
-                  </div>
-                )}
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                    msg.role === "ai"
-                      ? "bg-[var(--color-content-border)]/50 text-[var(--color-text-light-gray)] whitespace-pre-wrap"
-                      : "bg-[var(--color-main-bg)]/20 text-white",
+                    "flex gap-2.5",
+                    msg.role === "user" && "flex-row-reverse",
                   )}
                 >
-                  {msg.text}
+                  {msg.role === "ai" && (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-main-bg)]/20">
+                      <Bot className="h-4 w-4 text-[var(--color-main-text)]" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-lg px-4 py-3 text-sm leading-relaxed",
+                      "break-words whitespace-pre-wrap",
+                      msg.role === "ai"
+                        ? "bg-[var(--color-content-border)]/50 text-[var(--color-text-light-gray)]"
+                        : "bg-[var(--color-main-bg)]/20 text-white",
+                    )}
+                  >
+                    <div className="space-y-1.5">
+                      {msg.text.split("\n").map((line, lineIdx) => (
+                        <div key={lineIdx} className="min-h-[1.5em]">
+                          {line || "\u00A0"}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -156,19 +183,23 @@ export function Chatbot() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="메시지를 입력하세요...."
+              disabled={isLoading}
               className={cn(
                 "min-w-0 flex-1 rounded-lg border border-[var(--color-content-border)] bg-[var(--color-bg-panel)] px-3 py-2.5 text-sm text-white placeholder:text-[var(--color-text-light-gray)]",
                 "focus:border-[var(--color-main-border)] focus:outline-none focus:ring-1 focus:ring-[var(--color-main-border)]",
+                isLoading && "opacity-50 cursor-not-allowed",
               )}
               aria-label="메시지 입력"
             />
             <button
               type="button"
               onClick={handleSend}
+              disabled={isLoading || !input.trim()}
               className={cn(
                 "flex h-10 min-w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-lg px-4",
                 "bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] text-white",
                 "hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-main)]",
+                (isLoading || !input.trim()) && "opacity-50 cursor-not-allowed",
               )}
               aria-label="전송"
             >
