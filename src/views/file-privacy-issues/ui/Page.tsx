@@ -162,10 +162,14 @@ export default function FilePrivacyIssuesPage() {
   }, [loadIssues]);
 
   const handleLoadMore = async () => {
+    if (loading) return;
     const nextPage = page + 1;
-    const success = await loadIssues(nextPage, true);
-    if (success) {
-      setPage(nextPage);
+    setLoading(true);
+    try {
+      const success = await loadIssues(nextPage, true);
+      if (success) setPage(nextPage);
+    } finally {
+      setLoading(false);
     }
   };
 
