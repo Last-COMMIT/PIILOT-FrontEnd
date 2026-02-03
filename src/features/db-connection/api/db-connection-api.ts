@@ -7,6 +7,7 @@ import type {
   DbConnectionDetailItem,
   DbConnectionListResponse,
   DbConnectionStatsResponse,
+  DbConnectionScanResult,
   ApiResponse,
 } from "./types";
 
@@ -188,5 +189,30 @@ export async function getDbConnectionStats(): Promise<
     return data;
   } catch (e) {
     return toErrorResponse<DbConnectionStatsResponse>(e);
+  }
+}
+
+/** 3-1. DB 수동 스캔 */
+export async function scanDbConnection(
+  connectionId: number,
+): Promise<ApiResponse<DbConnectionScanResult>> {
+  try {
+    const res = await fetchWithAuth(`${BASE}/${connectionId}/scan`, {
+      method: "POST",
+    });
+    const data = (await res
+      .json()
+      .catch(() => ({}))) as ApiResponse<DbConnectionScanResult>;
+    if (!res.ok) {
+      return {
+        ...data,
+        success: false,
+        message: errorMessage(data, res.status),
+        result: null,
+      };
+    }
+    return data;
+  } catch (e) {
+    return toErrorResponse<DbConnectionScanResult>(e);
   }
 }

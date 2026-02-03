@@ -80,6 +80,18 @@ export interface DbConnectionStatsResponse {
   totalColumns: number;
 }
 
+/** 3-1. DB 수동 스캔 응답 */
+export interface DbConnectionScanResult {
+  scanHistoryId: number;
+  connectionId: number;
+  status: "COMPLETED" | "IN_PROGRESS";
+  scanStartTime: string;
+  scanEndTime: string;
+  totalTablesCount: number;
+  totalColumnsCount: number;
+  scannedColumnsCount: number;
+}
+
 /** API 공통 응답 래퍼 */
 export interface ApiResponse<T> {
   success: boolean;

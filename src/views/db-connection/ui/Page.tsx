@@ -24,6 +24,7 @@ import {
   createDbConnection,
   updateDbConnection,
   deleteDbConnection,
+  scanDbConnection,
 } from "@/features/db-connection";
 import type { DbmsTypeId } from "@/features/db-connection";
 import type {
@@ -177,6 +178,9 @@ export default function DbConnectionPage() {
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof ConnectionFormData, string>>
   >({});
+  const [scanningConnectionId, setScanningConnectionId] = useState<
+    number | null
+  >(null);
 
   const loadListAndStats = useCallback(async () => {
     setLoading(true);
@@ -390,10 +394,36 @@ export default function DbConnectionPage() {
     }
   };
 
-  const handleScan = (id: string) => {
-    void id;
-    alert("스캔 기능은 준비 중입니다.");
-    // TODO: DB 스캔 API 연동 (POST /api/db-connections/{connectionId}/scan)
+  const handleScan = async (id: string) => {
+    const connectionId = Number(id);
+    if (scanningConnectionId != null) return;
+    setScanningConnectionId(connectionId);
+    try {
+      const res = await scanDbConnection(connectionId);
+      if (res.success && res.result) {
+        const r = res.result;
+        alert(
+          `스캔이 완료되었습니다.\n테이블 ${r.totalTablesCount}개, 컬럼 ${r.totalColumnsCount}개 중 PII 컬럼 ${r.scannedColumnsCount}개 식별`,
+        );
+        loadListAndStats();
+      } else {
+        const msg = res.message ?? "";
+        const code = res.code ?? "";
+        const isNotConnected =
+          code === "CONNECTION_NOT_CONNECTED" ||
+          code === "DBSCAN4001" ||
+          /연결되지 않은|CONNECTION_NOT_CONNECTED/i.test(msg);
+        alert(
+          isNotConnected
+            ? "연결됨 상태인 DB에서만 스캔할 수 있습니다. 연결 상태를 확인해 주세요."
+            : msg || "스캔에 실패했습니다.",
+        );
+      }
+    } catch {
+      alert("스캔 요청 중 오류가 발생했습니다.");
+    } finally {
+      setScanningConnectionId(null);
+    }
   };
 
   if (loading) {
@@ -519,6 +549,7 @@ export default function DbConnectionPage() {
                   highlight: true,
                 },
               ];
+              const isScanning = scanningConnectionId === item.id;
               const actions: ConnectionActionItem[] = [
                 {
                   label: "상세보기",
@@ -526,7 +557,7 @@ export default function DbConnectionPage() {
                   onClick: () => openViewModal(String(item.id)),
                 },
                 {
-                  label: "스캔",
+                  label: isScanning ? "스캔 중…" : "스캔",
                   variant: "scan",
                   onClick: () => handleScan(String(item.id)),
                 },
