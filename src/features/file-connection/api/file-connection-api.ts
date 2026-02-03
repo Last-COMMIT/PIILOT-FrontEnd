@@ -7,6 +7,8 @@ import type {
   FileConnectionDetailItem,
   FileConnectionListResponse,
   FileConnectionStatsResponse,
+  FileConnectionScanStartResult,
+  FileConnectionScanStatusResult,
   ApiResponse,
 } from "./types";
 
@@ -232,5 +234,56 @@ export async function getFileConnectionStats(): Promise<
     return data;
   } catch (e) {
     return toErrorResponse<FileConnectionStatsResponse>(e);
+  }
+}
+
+/** 4-1. 파일 서버 스캔 시작 (202 Accepted) */
+export async function startFileConnectionScan(
+  connectionId: number,
+): Promise<ApiResponse<FileConnectionScanStartResult>> {
+  try {
+    const res = await fetchWithAuth(`${BASE}/${connectionId}/scan`, {
+      method: "POST",
+    });
+    const data = (await res
+      .json()
+      .catch(() => ({}))) as ApiResponse<FileConnectionScanStartResult>;
+    if (res.status !== 202 && !res.ok) {
+      return {
+        ...data,
+        success: false,
+        message: errorMessage(data, res.status),
+        result: null,
+      };
+    }
+    return data;
+  } catch (e) {
+    return toErrorResponse<FileConnectionScanStartResult>(e);
+  }
+}
+
+/** 4-2. 파일 서버 스캔 상태 조회 */
+export async function getFileConnectionScanStatus(
+  connectionId: number,
+  scanHistoryId: number,
+): Promise<ApiResponse<FileConnectionScanStatusResult>> {
+  try {
+    const res = await fetchWithAuth(
+      `${BASE}/${connectionId}/scan/${scanHistoryId}`,
+    );
+    const data = (await res
+      .json()
+      .catch(() => ({}))) as ApiResponse<FileConnectionScanStatusResult>;
+    if (!res.ok) {
+      return {
+        ...data,
+        success: false,
+        message: errorMessage(data, res.status),
+        result: null,
+      };
+    }
+    return data;
+  } catch (e) {
+    return toErrorResponse<FileConnectionScanStatusResult>(e);
   }
 }

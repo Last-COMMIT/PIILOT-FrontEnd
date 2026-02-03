@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, CheckCircle2, FileText, HardDrive } from "lucide-react";
 import {
@@ -19,6 +19,8 @@ import {
   createFileConnection,
   updateFileConnection,
   deleteFileConnection,
+  startFileConnectionScan,
+  getFileConnectionScanStatus,
 } from "@/features/file-connection";
 import type { FileServerTypeId } from "@/features/file-connection";
 import type {
@@ -127,6 +129,10 @@ export default function FileConnectionPage() {
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof ConnectionFormData, string>>
   >({});
+  const [scanningConnectionId, setScanningConnectionId] = useState<
+    number | null
+  >(null);
+  const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadListAndStats = useCallback(async () => {
     setLoading(true);
@@ -143,17 +149,38 @@ export default function FileConnectionPage() {
   }, []);
 
   useEffect(() => {
-    loadListAndStats();
+    const id = setTimeout(() => {
+      loadListAndStats();
+    }, 0);
+    return () => clearTimeout(id);
   }, [loadListAndStats]);
 
   useEffect(() => {
-    if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
-      setDetailForModal(null);
-      setModalLoading(false);
-      return;
-    }
+    return () => {
+      if (scanPollRef.current) {
+        clearInterval(scanPollRef.current);
+        scanPollRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
-    setModalLoading(true);
+    if (!isModalOpen || !editingId || (!isViewMode && !isEditMode)) {
+      const id = setTimeout(() => {
+        if (cancelled) return;
+        setDetailForModal(null);
+        setModalLoading(false);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+    const id = setTimeout(() => {
+      if (cancelled) return;
+      setModalLoading(true);
+    }, 0);
     getFileConnectionDetail(Number(editingId))
       .then((res) => {
         if (cancelled) return;
@@ -177,7 +204,7 @@ export default function FileConnectionPage() {
           alert(res.message ?? "상세 정보를 불러오는 데 실패했습니다.");
           setIsModalOpen(false);
         }
-        setModalLoading(false);
+        if (!cancelled) setModalLoading(false);
       })
       .catch(() => {
         if (!cancelled) {
@@ -188,7 +215,7 @@ export default function FileConnectionPage() {
       });
     return () => {
       cancelled = true;
-      setModalLoading(false);
+      clearTimeout(id);
     };
   }, [isModalOpen, editingId, isViewMode, isEditMode]);
 
@@ -339,9 +366,88 @@ export default function FileConnectionPage() {
     }
   };
 
-  const handleScan = (_id: string) => {
-    alert("스캔 기능은 준비 중입니다.");
-    // TODO: 파일 스캔 API 연동
+  const handleScan = async (id: string) => {
+    const connectionId = Number(id);
+    if (scanningConnectionId != null) {
+      alert("다른 스캔이 진행 중입니다. 완료 후 다시 시도해 주세요.");
+      return;
+    }
+    setScanningConnectionId(connectionId);
+    if (scanPollRef.current) {
+      clearInterval(scanPollRef.current);
+      scanPollRef.current = null;
+    }
+    try {
+      const startRes = await startFileConnectionScan(connectionId);
+      if (!startRes.success || !startRes.result) {
+        const msg = startRes.message ?? "";
+        const code = startRes.code ?? "";
+        const isNotConnected =
+          code === "FILESCAN4001" ||
+          /연결되지 않은|FILESCAN4001/i.test(msg);
+        const isAlreadyScanning =
+          code === "FILESCAN4091" || /이미 스캔이 진행 중/i.test(msg);
+        if (isNotConnected) {
+          alert(
+            "연결됨 상태인 파일 서버에서만 스캔할 수 있습니다. 연결 상태를 확인해 주세요.",
+          );
+        } else         if (isAlreadyScanning) {
+          alert("이미 스캔이 진행 중입니다. 완료 후 다시 시도해 주세요.");
+        } else {
+          alert(msg || "스캔 시작에 실패했습니다.");
+        }
+        setScanningConnectionId(null);
+        return;
+      }
+      const { scanHistoryId } = startRes.result;
+      const POLL_INTERVAL_MS = 2000;
+      const MAX_POLLS = 150;
+      let pollCount = 0;
+      scanPollRef.current = setInterval(async () => {
+        pollCount += 1;
+        if (pollCount > MAX_POLLS) {
+          if (scanPollRef.current) {
+            clearInterval(scanPollRef.current);
+            scanPollRef.current = null;
+          }
+          setScanningConnectionId(null);
+          alert("스캔 상태 확인 시간이 초과되었습니다. 나중에 목록을 새로고침해 주세요.");
+          return;
+        }
+        const statusRes = await getFileConnectionScanStatus(
+          connectionId,
+          scanHistoryId,
+        );
+        if (!statusRes.success || !statusRes.result) return;
+        const status = statusRes.result.status;
+        if (status === "COMPLETED") {
+          if (scanPollRef.current) {
+            clearInterval(scanPollRef.current);
+            scanPollRef.current = null;
+          }
+          setScanningConnectionId(null);
+          const r = statusRes.result;
+          alert(
+            `스캔이 완료되었습니다.\n총 파일 ${r.totalFilesCount}개, 스캔 완료 ${r.scannedFilesCount}개`,
+          );
+          loadListAndStats();
+        } else if (status === "FAILED") {
+          if (scanPollRef.current) {
+            clearInterval(scanPollRef.current);
+            scanPollRef.current = null;
+          }
+          setScanningConnectionId(null);
+          alert("스캔이 실패했습니다.");
+        }
+      }, POLL_INTERVAL_MS);
+    } catch {
+      if (scanPollRef.current) {
+        clearInterval(scanPollRef.current);
+        scanPollRef.current = null;
+      }
+      setScanningConnectionId(null);
+      alert("스캔 요청 중 오류가 발생했습니다.");
+    }
   };
 
   const formatFileSize = (sizeBytes: number): string => {
@@ -479,6 +585,7 @@ export default function FileConnectionPage() {
                   highlight: true,
                 },
               ];
+              const isScanning = scanningConnectionId === item.id;
               const actions: ConnectionActionItem[] = [
                 {
                   label: "상세보기",
@@ -486,9 +593,11 @@ export default function FileConnectionPage() {
                   onClick: () => openViewModal(String(item.id)),
                 },
                 {
-                  label: "스캔",
+                  label: isScanning ? "스캔 중…" : "스캔",
                   variant: "scan",
-                  onClick: () => handleScan(String(item.id)),
+                  onClick: isScanning
+                    ? undefined
+                    : () => handleScan(String(item.id)),
                 },
                 {
                   label: "수정",
