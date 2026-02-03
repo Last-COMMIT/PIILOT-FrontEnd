@@ -88,6 +88,8 @@ export default function HomePage() {
           let hasTrends = false;
           let hasError = false;
           let errorMsg = "";
+          let summaryNotReady = false;
+          let trendsNotReady = false;
 
           // Summary 처리
           if (summaryRes.success && summaryRes.result) {
@@ -95,10 +97,10 @@ export default function HomePage() {
             hasSummary = true;
           } else {
             const msg = summaryRes.message ?? "";
-            const is403 = summaryRes.httpStatus === 403;
-            // 403 또는 API 미구현 패턴 감지
-            if (is403 || NOT_IMPLEMENTED_PATTERN.test(msg)) {
-              setApiNotReady(true);
+            const isNotReady =
+              summaryRes.httpStatus === 403 || NOT_IMPLEMENTED_PATTERN.test(msg);
+            if (isNotReady) {
+              summaryNotReady = true;
             } else {
               hasError = true;
               errorMsg = msg || "대시보드 요약 데이터를 불러오지 못했습니다.";
@@ -111,34 +113,24 @@ export default function HomePage() {
             hasTrends = true;
           } else {
             const msg = trendsRes.message ?? "";
-            const is403 = trendsRes.httpStatus === 403;
-            // 403 또는 API 미구현 패턴 감지
-            if (is403 || NOT_IMPLEMENTED_PATTERN.test(msg)) {
-              // Summary도 실패했으면 API 미구현으로 처리
-              if (!hasSummary) {
-                setApiNotReady(true);
-              }
+            const isNotReady =
+              trendsRes.httpStatus === 403 || NOT_IMPLEMENTED_PATTERN.test(msg);
+            if (isNotReady) {
+              trendsNotReady = true;
             } else if (!hasError) {
               hasError = true;
               errorMsg = msg || "대시보드 추세 데이터를 불러오지 못했습니다.";
             }
           }
 
-          // 둘 다 실패한 경우 처리
+          if (summaryNotReady && trendsNotReady) {
+            setApiNotReady(true);
+            return;
+          }
+          setApiNotReady(false);
           if (!hasSummary && !hasTrends) {
-            // 둘 다 403이거나 API 미구현이면 API 미구현으로 처리
-            const summaryIs403 = summaryRes.httpStatus === 403;
-            const trendsIs403 = trendsRes.httpStatus === 403;
-            const summaryNotImpl = NOT_IMPLEMENTED_PATTERN.test(summaryRes.message ?? "");
-            const trendsNotImpl = NOT_IMPLEMENTED_PATTERN.test(trendsRes.message ?? "");
-            
-            if (summaryIs403 || trendsIs403 || summaryNotImpl || trendsNotImpl) {
-              setApiNotReady(true);
-            } else if (hasError) {
-              setError(errorMsg);
-            } else {
-              setApiNotReady(true);
-            }
+            if (hasError) setError(errorMsg);
+            else setApiNotReady(true);
           }
         })
         .catch((e) => {
