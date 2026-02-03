@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Lock, FileText, Folder } from "lucide-react";
 import { StatCard, Table, Button, TableSection } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
@@ -85,6 +86,8 @@ const PAGE_SIZE = 10;
 const NOT_IMPLEMENTED_PATTERN = /no static resource|api\/file-pii\/issues/i;
 
 export default function FilePrivacyIssuesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [connectionIssues, setConnectionIssues] = useState<ConnectionIssue[]>([]);
   const [stats, setStats] = useState<FilePiiIssuesStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,17 @@ export default function FilePrivacyIssuesPage() {
   const [hasNext, setHasNext] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<number | null>(null);
+
+  // URL 쿼리 파라미터에서 issueId 읽기
+  useEffect(() => {
+    const issueIdParam = searchParams.get("issueId");
+    if (issueIdParam) {
+      const issueId = parseInt(issueIdParam, 10);
+      if (!Number.isNaN(issueId)) {
+        setSelectedIssueId(issueId);
+      }
+    }
+  }, [searchParams]);
 
   const loadIssues = useCallback(
     async (pageNum: number, append: boolean): Promise<boolean> => {
@@ -455,7 +469,11 @@ export default function FilePrivacyIssuesPage() {
       {selectedIssueId != null && (
         <IssueDetailModal
           open={selectedIssueId != null}
-          onClose={() => setSelectedIssueId(null)}
+          onClose={() => {
+            setSelectedIssueId(null);
+            // URL 쿼리 파라미터 제거
+            router.push("/privacy/file/issues");
+          }}
           issueId={selectedIssueId}
         />
       )}

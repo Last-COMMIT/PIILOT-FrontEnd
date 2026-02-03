@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Lock, FileText, Database } from "lucide-react";
 import { StatCard, Table, Button, TableSection } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
@@ -81,6 +82,8 @@ const PAGE_SIZE = 10;
 const NOT_IMPLEMENTED_PATTERN = /no static resource|api\/db-pii\/issues/i;
 
 export default function DbPrivacyIssuesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [tableIssues, setTableIssues] = useState<TableIssue[]>([]);
   const [stats, setStats] = useState<DbPiiIssuesStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +93,17 @@ export default function DbPrivacyIssuesPage() {
   const [hasNext, setHasNext] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<number | null>(null);
+
+  // URL 쿼리 파라미터에서 issueId 읽기
+  useEffect(() => {
+    const issueIdParam = searchParams.get("issueId");
+    if (issueIdParam) {
+      const issueId = parseInt(issueIdParam, 10);
+      if (!Number.isNaN(issueId)) {
+        setSelectedIssueId(issueId);
+      }
+    }
+  }, [searchParams]);
 
   const loadIssues = useCallback(
     async (pageNum: number, append: boolean): Promise<boolean> => {
@@ -157,7 +171,11 @@ export default function DbPrivacyIssuesPage() {
     return () => clearTimeout(id);
   }, [loadIssues]);
 
-  const handleCloseModal = () => setSelectedIssueId(null);
+  const handleCloseModal = () => {
+    setSelectedIssueId(null);
+    // URL 쿼리 파라미터 제거
+    router.push("/privacy/db/issues");
+  };
 
   const handleRowDetailClick = (issueId: number) => {
     setSelectedIssueId(issueId);
