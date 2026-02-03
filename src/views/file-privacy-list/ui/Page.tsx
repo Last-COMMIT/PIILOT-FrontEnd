@@ -1,16 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Database, AlertTriangle, Lock, FileText } from "lucide-react";
-import { StatCard, Table } from "@/shared/ui";
+import { StatCard, Table, Button } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import FilterSection from "./FilterSection";
+import {
+  getFilePiiConnections,
+  getFilePiiFiles,
+} from "@/features/file-pii";
+import type { FilePiiConnection, FilePiiFile } from "@/features/file-pii";
+import { formatScanDateTime, formatFileSize } from "../lib/format";
 
 type MaskingStatus = "원본" | "마스킹됨";
 type RiskLevel = "높음" | "중간" | "낮음";
 
-interface FilePrivacyItem extends Record<string, unknown> {
+/** API riskLevel → UI 한글 */
+const riskLevelToLabel: Record<string, RiskLevel> = {
+  HIGH: "높음",
+  MEDIUM: "중간",
+  LOW: "낮음",
+};
+
+/** API fileCategory → UI 한글 */
+const categoryToLabel: Record<string, string> = {
+  DOCUMENT: "문서",
+  PHOTO: "사진",
+  VIDEO: "영상",
+  AUDIO: "음성",
+};
+
+/** 테이블 행용 (API 파일 → UI) */
+interface TableRow extends Record<string, unknown> {
   id: string;
   fileServerConnection: string;
   fileName: string;
@@ -19,79 +41,43 @@ interface FilePrivacyItem extends Record<string, unknown> {
   maskingStatus: MaskingStatus;
   riskLevel: RiskLevel;
   scanDateTime: string;
-  fileSizeGb: number;
 }
 
-function formatFileSizeFromGb(sizeGb: number): string {
-  if (sizeGb >= 1000) return `${(sizeGb / 1000).toFixed(1)} TB`;
-  if (sizeGb >= 1) return `${sizeGb.toFixed(1)} GB`;
-  return `${Math.round(sizeGb * 1024)} MB`;
+function fileToRow(f: FilePiiFile): TableRow {
+  return {
+    id: String(f.fileId),
+    fileServerConnection: `${f.connectionName} (${f.serverTypeName})`,
+    fileName: f.fileName,
+    filePath: f.filePath,
+    fileType: categoryToLabel[f.fileCategory] ?? f.fileCategoryName,
+    maskingStatus: f.masked ? "마스킹됨" : "원본",
+    riskLevel: riskLevelToLabel[f.riskLevel] ?? "낮음",
+    scanDateTime: formatScanDateTime(f.lastScannedAt),
+  };
 }
 
-function generateMockItems(): FilePrivacyItem[] {
-  const items: FilePrivacyItem[] = [];
-  const connections = ["S3 Document Storage", "Legacy NAS Share", "NFS Backup"];
-  const fileTypes = ["문서", "사진", "영상", "음성"];
-  const riskLevels: RiskLevel[] = ["낮음", "중간", "높음"];
-  const maskingStatuses: MaskingStatus[] = ["원본", "마스킹됨"];
-  const fileNames = [
-    "user_guide.txt",
-    "reservation_info.txt",
-    "profile_photo.png",
-    "user_list.csv",
-    "payment_capture.png",
-    "reservation_ticket.pdf",
-    "facility_manual.pdf",
-    "id_scan.png",
-    "ticket_image.png",
-    "facility_notice.wav",
-    "notice_content.docs",
-    "reservation.mp4",
-  ];
-  const paths = [
-    "desktop/user/add",
-    "desktop/reservation/detail",
-    "desktop/user/list",
-    "desktop/payment/add",
-    "desktop/facility/manage",
-    "desktop/notice/list",
-    "desktop/reservation/list",
-    "desktop/user/detail",
-  ];
+/** 파일 카테고리 필터 옵션 */
+const FILE_CATEGORY_OPTIONS = [
+  { value: "all", label: "파일 형식" },
+  { value: "DOCUMENT", label: "문서" },
+  { value: "PHOTO", label: "사진" },
+  { value: "VIDEO", label: "영상" },
+  { value: "AUDIO", label: "음성" },
+];
 
-  for (let i = 1; i <= 120; i++) {
-    const fileName = fileNames[(i - 1) % fileNames.length];
-    const fileType = fileTypes[(i - 1) % fileTypes.length];
-    const riskLevel = riskLevels[(i * 7) % riskLevels.length];
-    const maskingStatus = maskingStatuses[(i * 5) % maskingStatuses.length];
-    const connection = connections[(i - 1) % connections.length];
-    const filePath = paths[(i * 3) % paths.length];
-
-    const hour = String((i * 2) % 24).padStart(2, "0");
-    const minute = String((i * 7) % 60).padStart(2, "0");
-    const day = String(17 + (i % 3)).padStart(2, "0");
-
-    // 대략적인 파일 용량(GB) - deterministic
-    const sizeGb = ((i * 13) % 820) / 10 + 0.2; // 0.2GB ~ 82.1GB
-
-    items.push({
-      id: String(i),
-      fileServerConnection: connection,
-      fileName,
-      filePath,
-      fileType,
-      maskingStatus,
-      riskLevel,
-      scanDateTime: `01/${day} ${hour}:${minute}`,
-      fileSizeGb: sizeGb,
-    });
-  }
-
-  return items;
-}
+const PAGE_SIZE = 20;
 
 export default function FilePrivacyListPage() {
-  const [items] = useState<FilePrivacyItem[]>(generateMockItems());
+  const [connections, setConnections] = useState<FilePiiConnection[]>([]);
+  const [rows, setRows] = useState<TableRow[]>([]);
+  const [stats, setStats] = useState<{
+    totalFiles: number;
+    highRiskCount: number;
+    maskingRate: number;
+    totalFileSize: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
@@ -99,71 +85,123 @@ export default function FilePrivacyListPage() {
   const [selectedFileType, setSelectedFileType] = useState("all");
   const [selectedMaskingStatus, setSelectedMaskingStatus] = useState("all");
   const [selectedRiskLevel, setSelectedRiskLevel] = useState("all");
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
 
-  const connectionOptions = useMemo(() => {
-    const unique = Array.from(
-      new Set(items.map((i) => i.fileServerConnection).filter(Boolean)),
-    );
-    return [
-      { value: "all", label: "모든 커넥션" },
-      ...unique.map((v) => ({ value: v, label: v })),
-    ];
-  }, [items]);
+  const connectionOptions = [
+    { value: "all", label: "모든 커넥션" },
+    ...connections.map((c) => ({
+      value: String(c.id),
+      label: `${c.connectionName} (${c.serverTypeName})`,
+    })),
+  ];
 
-  const fileTypeOptions = useMemo(() => {
-    const unique = Array.from(new Set(items.map((i) => i.fileType).filter(Boolean)));
-    return [
-      { value: "all", label: "파일 형식" },
-      ...unique.map((v) => ({ value: v, label: v })),
-    ];
-  }, [items]);
+  const fileTypeOptions = FILE_CATEGORY_OPTIONS;
 
-  const filteredItems = useMemo(() => {
-    const q = appliedSearchQuery.trim().toLowerCase();
-    return items.filter((item) => {
-      if (q) {
-        if (
-          !item.fileName.toLowerCase().includes(q) &&
-          !item.filePath.toLowerCase().includes(q)
-        ) {
-          return false;
+  const loadConnections = useCallback(async () => {
+    const res = await getFilePiiConnections();
+    if (res.success && res.result) {
+      setConnections(res.result);
+    }
+  }, []);
+
+  const loadFiles = useCallback(
+    async (pageNum: number, append: boolean): Promise<boolean> => {
+      const params: {
+        connectionId?: number;
+        category?: "DOCUMENT" | "PHOTO" | "VIDEO" | "AUDIO";
+        masked?: boolean;
+        riskLevel?: "HIGH" | "MEDIUM" | "LOW";
+        keyword?: string;
+        page?: number;
+        size?: number;
+      } = {
+        page: pageNum,
+        size: PAGE_SIZE,
+      };
+      if (selectedConnection !== "all") {
+        params.connectionId = Number(selectedConnection);
+      }
+      if (selectedFileType !== "all") {
+        params.category = selectedFileType as "DOCUMENT" | "PHOTO" | "VIDEO" | "AUDIO";
+      }
+      if (selectedMaskingStatus === "original") {
+        params.masked = false;
+      } else if (selectedMaskingStatus === "masked") {
+        params.masked = true;
+      }
+      if (selectedRiskLevel === "high") {
+        params.riskLevel = "HIGH";
+      } else if (selectedRiskLevel === "medium") {
+        params.riskLevel = "MEDIUM";
+      } else if (selectedRiskLevel === "low") {
+        params.riskLevel = "LOW";
+      }
+      if (appliedSearchQuery.trim()) {
+        params.keyword = appliedSearchQuery.trim();
+      }
+      const res = await getFilePiiFiles(params);
+      if (!res.success) {
+        setError(res.message ?? "파일 목록을 불러오지 못했습니다.");
+        if (!append) setRows([]);
+        setHasNext(false);
+        return false;
+      }
+      setError(null);
+      if (res.result) {
+        const rawContent = res.result.content;
+        const contentArray: FilePiiFile[] = Array.isArray(rawContent)
+          ? rawContent
+          : Array.isArray((rawContent as { content?: FilePiiFile[] })?.content)
+            ? (rawContent as { content: FilePiiFile[] }).content
+            : [];
+        const list = contentArray
+          .filter(
+            (f): f is FilePiiFile =>
+              f != null &&
+              typeof f.fileId === "number" &&
+              typeof f.fileName === "string",
+          )
+          .map(fileToRow);
+        if (append) {
+          setRows((prev) => [...prev, ...list]);
+        } else {
+          setRows(list);
         }
+        setStats(res.result.stats ?? null);
+        const slice =
+          rawContent && !Array.isArray(rawContent)
+            ? (rawContent as { hasNext?: boolean })
+            : null;
+        setHasNext(Boolean(slice?.hasNext));
+        return true;
       }
+      if (!append) setRows([]);
+      setStats(null);
+      setHasNext(false);
+      return false;
+    },
+    [selectedConnection, selectedFileType, selectedMaskingStatus, selectedRiskLevel, appliedSearchQuery],
+  );
 
-      if (selectedConnection !== "all" && item.fileServerConnection !== selectedConnection) {
-        return false;
-      }
-      if (selectedFileType !== "all" && item.fileType !== selectedFileType) {
-        return false;
-      }
-      if (selectedMaskingStatus === "original" && item.maskingStatus !== "원본") {
-        return false;
-      }
-      if (selectedMaskingStatus === "masked" && item.maskingStatus !== "마스킹됨") {
-        return false;
-      }
-      if (selectedRiskLevel === "high" && item.riskLevel !== "높음") {
-        return false;
-      }
-      if (selectedRiskLevel === "medium" && item.riskLevel !== "중간") {
-        return false;
-      }
-      if (selectedRiskLevel === "low" && item.riskLevel !== "낮음") {
-        return false;
-      }
-      return true;
-    });
-  }, [
-    items,
-    appliedSearchQuery,
-    selectedConnection,
-    selectedFileType,
-    selectedMaskingStatus,
-    selectedRiskLevel,
-  ]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadConnections();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [loadConnections]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setLoading(true);
+      loadFiles(0, false).finally(() => setLoading(false));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [loadFiles]);
 
   const handleSearch = () => {
     setAppliedSearchQuery(searchQuery);
+    setPage(0);
   };
 
   const handleReset = () => {
@@ -173,16 +211,25 @@ export default function FilePrivacyListPage() {
     setSelectedFileType("all");
     setSelectedMaskingStatus("all");
     setSelectedRiskLevel("all");
+    setPage(0);
   };
 
-  // 통계(전체 기준)
-  const totalFiles = items.length;
-  const highRiskItems = items.filter((i) => i.riskLevel === "높음").length;
-  const maskedItems = items.filter((i) => i.maskingStatus === "마스킹됨").length;
-  const maskingRate = totalFiles === 0 ? 0 : Math.round((maskedItems / totalFiles) * 100);
-  const totalSizeGb = items.reduce((sum, i) => sum + i.fileSizeGb, 0);
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setLoading(true);
+    loadFiles(nextPage, true)
+      .then((ok) => {
+        if (ok) setPage(nextPage);
+      })
+      .finally(() => setLoading(false));
+  };
 
-  const columns: TableColumn<FilePrivacyItem>[] = [
+  const totalFiles = stats?.totalFiles ?? 0;
+  const highRiskItems = stats?.highRiskCount ?? 0;
+  const maskingRate = stats?.maskingRate ?? 0;
+  const totalFileSize = stats?.totalFileSize ?? 0;
+
+  const columns: TableColumn<TableRow>[] = [
     { id: "fileServerConnection", label: "파일 서버 연결", width: "2fr" },
     { id: "fileName", label: "파일명", width: "1.5fr" },
     { id: "filePath", label: "파일 경로", width: "2fr" },
@@ -245,14 +292,14 @@ export default function FilePrivacyListPage() {
           colorScheme="coral"
         />
         <StatCard
-          title="암호화율"
-          value={`${maskingRate}%`}
+          title="마스킹율"
+          value={`${maskingRate.toFixed(1)}%`}
           icon={<Lock className="size-5" />}
           colorScheme="purple"
         />
         <StatCard
           title="개인정보 파일 용량"
-          value={formatFileSizeFromGb(totalSizeGb)}
+          value={formatFileSize(totalFileSize)}
           icon={<Database className="size-5" />}
           colorScheme="green"
         />
@@ -277,13 +324,45 @@ export default function FilePrivacyListPage() {
         />
 
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <Table
-            columns={columns}
-            data={filteredItems}
-            scrollable
-            maxBodyHeight="100%"
-            className="h-full"
-          />
+          {loading && rows.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-white">
+              <div
+                className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+                aria-label="로딩 중"
+              />
+            </div>
+          ) : error && rows.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-white">
+              <p className="text-[var(--color-coral-text)]">{error}</p>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-white/70">
+              파일이 없습니다.
+            </div>
+          ) : (
+            <>
+              <Table
+                columns={columns}
+                data={rows}
+                scrollable
+                maxBodyHeight="100%"
+                className="h-full"
+              />
+              {hasNext && (
+                <div className="shrink-0 pt-3 flex justify-center pb-2">
+                  <Button
+                    type="button"
+                    onClick={handleLoadMore}
+                    disabled={loading}
+                    colorScheme="main"
+                    appearance="outline"
+                  >
+                    {loading ? "로딩 중..." : "더보기"}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
