@@ -51,7 +51,7 @@ function fileToRow(f: FilePiiFile): TableRow {
     filePath: f.filePath,
     fileType: categoryToLabel[f.fileCategory] ?? f.fileCategoryName,
     maskingStatus: f.masked ? "마스킹됨" : "원본",
-    riskLevel: riskLevelToLabel[f.riskLevel] ?? "낮음",
+    riskLevel: riskLevelToLabel[f.riskLevel] ?? "높음",
     scanDateTime: formatScanDateTime(f.lastScannedAt),
   };
 }
@@ -99,9 +99,15 @@ export default function FilePrivacyListPage() {
   const fileTypeOptions = FILE_CATEGORY_OPTIONS;
 
   const loadConnections = useCallback(async () => {
-    const res = await getFilePiiConnections();
-    if (res.success && res.result) {
-      setConnections(res.result);
+    try {
+      const res = await getFilePiiConnections();
+      if (res.success && res.result) {
+        setConnections(res.result);
+      } else {
+        console.error("커넥션 목록 로드 실패:", res.message);
+      }
+    } catch (err) {
+      console.error("커넥션 API 호출 오류:", err);
     }
   }, []);
 
