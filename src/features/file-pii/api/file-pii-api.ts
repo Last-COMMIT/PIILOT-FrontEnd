@@ -4,6 +4,10 @@ import type {
   FilePiiConnection,
   FilePiiFilesResult,
   GetFilePiiFilesParams,
+  FilePiiIssuesResult,
+  FilePiiIssueDetail,
+  FilePiiIssueStatusRequest,
+  FilePiiIssueStatusResult,
   ApiResponse,
 } from "./types";
 
@@ -98,5 +102,82 @@ export async function getFilePiiFiles(
     return data;
   } catch (e) {
     return toErrorResponse<FilePiiFilesResult>(e);
+  }
+}
+
+/** 10-1. 파일 PII 이슈 목록·통계 조회 */
+export async function getFilePiiIssues(params?: {
+  page?: number;
+  size?: number;
+}): Promise<ApiResponse<FilePiiIssuesResult>> {
+  try {
+    const search = new URLSearchParams();
+    if (params?.page != null) search.set("page", String(params.page));
+    if (params?.size != null) search.set("size", String(params.size));
+    const qs = search.toString();
+    const url = qs ? `${BASE}/issues?${qs}` : `${BASE}/issues`;
+    const res = await fetchWithAuth(url);
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<FilePiiIssuesResult>(raw || null);
+    if (!res.ok) {
+      return {
+        ...data,
+        success: false,
+        message: errorMessage(data, res.status),
+        result: null,
+      };
+    }
+    return data;
+  } catch (e) {
+    return toErrorResponse<FilePiiIssuesResult>(e);
+  }
+}
+
+/** 10-2. 파일 PII 이슈 상세 조회 */
+export async function getFilePiiIssueDetail(
+  issueId: number,
+): Promise<ApiResponse<FilePiiIssueDetail>> {
+  try {
+    const res = await fetchWithAuth(`${BASE}/issues/${issueId}`);
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<FilePiiIssueDetail>(raw || null);
+    if (!res.ok) {
+      return {
+        ...data,
+        success: false,
+        message: errorMessage(data, res.status),
+        result: null,
+      };
+    }
+    return data;
+  } catch (e) {
+    return toErrorResponse<FilePiiIssueDetail>(e);
+  }
+}
+
+/** 10-3. 파일 PII 이슈 작업 상태 변경 */
+export async function patchFilePiiIssueStatus(
+  issueId: number,
+  body: FilePiiIssueStatusRequest,
+): Promise<ApiResponse<FilePiiIssueStatusResult>> {
+  try {
+    const res = await fetchWithAuth(`${BASE}/issues/${issueId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const raw = await res.text().catch(() => "");
+    const data = parseJsonResponse<FilePiiIssueStatusResult>(raw || null);
+    if (!res.ok) {
+      return {
+        ...data,
+        success: false,
+        message: errorMessage(data, res.status),
+        result: null,
+      };
+    }
+    return data;
+  } catch (e) {
+    return toErrorResponse<FilePiiIssueStatusResult>(e);
   }
 }

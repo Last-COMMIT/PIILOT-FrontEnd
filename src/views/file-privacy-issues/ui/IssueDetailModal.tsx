@@ -1,38 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import { Modal } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
+import { getFilePiiIssueDetail } from "@/features/file-pii";
+import type { FilePiiIssueDetail } from "@/features/file-pii";
 
 type RiskLevel = "높음" | "중간" | "낮음";
 
-interface FileIssue {
-  id: string;
-  fileName: string;
-  filePath: string;
-  personalInfoCount: number;
-  personalInfoType: string;
-  riskLevel: RiskLevel;
-}
+const riskLevelToLabel: Record<string, RiskLevel> = {
+  HIGH: "높음",
+  MEDIUM: "중간",
+  LOW: "낮음",
+};
 
-interface FileServerIssue {
-  id: string;
-  serverName: string;
-  serverType: string;
-  manager: string;
-  issueCount: number;
-  files: FileIssue[];
-}
-
-interface IssueDetailModalProps {
-  open: boolean;
-  onClose: () => void;
-  issue: FileServerIssue;
-  file: FileIssue | null;
-}
-
-const getRiskLevelColor = (riskLevel: RiskLevel): string => {
-  switch (riskLevel) {
+const getRiskLevelColor = (riskLevel: string): string => {
+  const label = riskLevelToLabel[riskLevel] ?? riskLevel;
+  switch (label) {
     case "높음":
       return "text-[var(--color-coral-text)]";
     case "중간":
@@ -44,74 +29,147 @@ const getRiskLevelColor = (riskLevel: RiskLevel): string => {
   }
 };
 
+const formatDetectedAt = (isoString: string): string => {
+  try {
+    if (!isoString || typeof isoString !== "string") return "";
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return isoString;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}.${month}.${day} ${hours}:${minutes}`;
+  } catch {
+    return isoString;
+  }
+};
+
+interface IssueDetailModalProps {
+  open: boolean;
+  onClose: () => void;
+  issueId: number | null;
+}
+
 export default function IssueDetailModal({
   open,
   onClose,
-  issue,
-  file,
+  issueId,
 }: IssueDetailModalProps) {
-  const selectedFile = file ?? issue.files[0];
+  const [detail, setDetail] = useState<FilePiiIssueDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // 담당자 이메일 매핑 (실제로는 API에서 가져올 데이터)
-  const managerEmailMap: Record<string, string> = {
-    "홍길동 대리": "honggildong@naver.com",
-    "김철수 대리": "chulsoo123@gmail.com",
-    "이순신 과장": "sunsin.lee@naver.com",
-    "박영희 대리": "younghee.park@example.com",
-    "최민수 과장": "minsu.choi@example.com",
-    "정수진 대리": "sujin.jung@example.com",
-  };
+  useEffect(() => {
+    let cancelled = false;
+    if (!open || issueId == null) {
+      const id = setTimeout(() => {
+        if (cancelled) return;
+        setDetail(null);
+        setError(null);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+    const id = setTimeout(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+    }, 0);
+    getFilePiiIssueDetail(issueId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.result) {
+          setDetail(res.result);
+          setError(null);
+        } else {
+          setDetail(null);
+          setError(res.message ?? "상세 정보를 불러오지 못했습니다.");
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDetail(null);
+        setError("상세 정보를 불러오는 중 오류가 발생했습니다.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [open, issueId]);
 
-  const managerEmail = managerEmailMap[issue.manager] || "unknown@example.com";
+  const riskLevelLabel = detail
+    ? riskLevelToLabel[detail.riskLevel] ?? detail.riskLevel
+    : "";
 
-  // 파일 확장자에서 파일 유형 추출
-  const getFileType = (fileName: string): string => {
-    const ext = fileName.split(".").pop()?.toUpperCase() || "UNKNOWN";
-    return ext;
-  };
+  const firstGridFields = detail
+    ? [
+        { label: "파일명", value: detail.fileName },
+        { label: "파일 유형", value: detail.fileCategoryName },
+        {
+          label: "검출된 개인정보 수",
+          value: `${detail.totalPiiCount}건`,
+          className: "tabular-nums",
+        },
+        {
+          label: "위험도",
+          value: riskLevelLabel,
+          className: cn(
+            "font-semibold text-sm",
+            getRiskLevelColor(detail.riskLevel),
+          ),
+        },
+        {
+          label: "개인정보 유형",
+          value: detail.piiDetails.map((p) => p.piiTypeName).join(", "),
+          className: "break-words whitespace-normal",
+        },
+        {
+          label: "스캔 일시",
+          value: formatDetectedAt(detail.detectedAt),
+        },
+      ]
+    : [];
 
-  // 첫 번째 그리드 필드 정의
-  const firstGridFields = [
-    {
-      label: "파일명",
-      value: selectedFile.fileName,
-    },
-    {
-      label: "파일 유형",
-      value: getFileType(selectedFile.fileName),
-    },
-    {
-      label: "검출된 개인정보 수",
-      value: `${selectedFile.personalInfoCount}건`,
-      className: "tabular-nums",
-    },
-    {
-      label: "위험도",
-      value: selectedFile.riskLevel,
-      className: cn("font-semibold text-sm", getRiskLevelColor(selectedFile.riskLevel)),
-    },
-    {
-      label: "개인정보 유형",
-      value: selectedFile.personalInfoType,
-      className: "break-words whitespace-normal",
-    },
-    {
-      label: "스캔 일시",
-      value: "2025.01.13 04:00",
-    },
-  ];
+  const secondGridFields = detail
+    ? [
+        {
+          label: "마스킹된 개인정보 수",
+          value: `${detail.maskedPiiCount.toLocaleString()}건`,
+          className: "tabular-nums",
+        },
+        {
+          label: "미마스킹 개인정보 수",
+          value: `${detail.unmaskedPiiCount.toLocaleString()}건`,
+          className: "tabular-nums",
+        },
+      ]
+    : [];
 
-  // 두 번째 그리드 필드 정의
-  const secondGridFields = [
-    {
-      label: "담당자",
-      value: issue.manager,
-    },
-    {
-      label: "담당자 이메일",
-      value: managerEmail,
-    },
-  ];
+  const thirdGridFields = detail
+    ? [
+        { label: "담당자", value: detail.managerName },
+        { label: "담당자 이메일", value: detail.managerEmail },
+      ]
+    : [];
+
+  const piiDetails = detail?.piiDetails ?? [];
+  const previewAvailable = detail?.previewAvailable ?? false;
+  const fileContent = detail?.fileContent;
+  const previewMessage = detail?.previewMessage;
+  const mimeType = detail?.mimeType ?? "";
+
+  // 이미지 타입인지 확인
+  const isImage = mimeType.startsWith("image/");
+  // 비디오 타입인지 확인
+  const isVideo = mimeType.startsWith("video/");
+  // 오디오 타입인지 확인
+  const isAudio = mimeType.startsWith("audio/");
 
   return (
     <Modal
@@ -122,87 +180,197 @@ export default function IssueDetailModal({
       className="max-w-6xl !max-h-[98vh]"
     >
       <div className="flex flex-col gap-5 px-4 py-2">
-        <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-coral-bg)]/15 border border-[var(--color-coral-border)]">
-          <Lock className="size-5 shrink-0 text-[var(--color-coral-text)] mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-[var(--color-coral-text)] mb-1">
-              암호화되지 않은 개인정보
-            </p>
-            <p className="text-sm text-[var(--color-text-light-gray)]">
-              이 파일의 개인정보는 마스킹 처리되지 않아 보안 위험이 있습니다.
-              즉시 암호화 조치가 필요합니다.
-            </p>
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-white">
+            <div
+              className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+              aria-label="로딩 중"
+            />
           </div>
-        </div>
+        ) : error ? (
+          <p className="py-6 text-center text-[var(--color-coral-text)]">
+            {error}
+          </p>
+        ) : detail ? (
+          <>
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-coral-bg)]/15 border border-[var(--color-coral-border)]">
+              <Lock className="size-5 shrink-0 text-[var(--color-coral-text)] mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[var(--color-coral-text)] mb-1">
+                  마스킹되지 않은 개인정보
+                </p>
+                <p className="text-sm text-[var(--color-text-light-gray)]">
+                  이 파일의 개인정보는 마스킹 처리되지 않아 보안 위험이 있습니다.
+                  즉시 마스킹 조치가 필요합니다.
+                </p>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-8">
-          {/* 왼쪽: 원본 파일 미리보기 */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-white text-center">
-              원본 파일
-            </h3>
-            <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden bg-[var(--color-sidebar-bg)]">
-              <div className="p-8 flex items-center justify-center min-h-[400px]">
-                <div className="text-center space-y-4">
-                  <div className="text-6xl text-[var(--color-text-light-gray)]">
-                    📄
+            <div className="grid grid-cols-2 gap-8">
+              {/* 왼쪽: 원본 파일 미리보기 */}
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold text-white text-center">
+                  원본 파일
+                </h3>
+                <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden bg-[var(--color-sidebar-bg)]">
+                  {previewAvailable && fileContent ? (
+                    <div className="p-4 flex items-center justify-center min-h-[400px] max-h-[600px] overflow-auto">
+                      {isImage ? (
+                        <img
+                          src={`data:${mimeType};base64,${fileContent}`}
+                          alt={detail.fileName}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : isVideo ? (
+                        <video
+                          src={`data:${mimeType};base64,${fileContent}`}
+                          controls
+                          className="max-w-full max-h-full"
+                        />
+                      ) : isAudio ? (
+                        <audio
+                          src={`data:${mimeType};base64,${fileContent}`}
+                          controls
+                          className="w-full"
+                        />
+                      ) : (
+                        <div className="text-center space-y-4">
+                          <div className="text-6xl text-[var(--color-text-light-gray)]">
+                            📄
+                          </div>
+                          <p className="text-sm text-[var(--color-text-light-gray)]">
+                            파일 미리보기 영역
+                          </p>
+                          <p className="text-xs text-[var(--color-text-light-gray)]/60">
+                            {detail.fileName}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-8 flex items-center justify-center min-h-[400px]">
+                      <div className="text-center space-y-4">
+                        <div className="text-6xl text-[var(--color-text-light-gray)]">
+                          📄
+                        </div>
+                        <p className="text-sm text-[var(--color-text-light-gray)]">
+                          {previewMessage ||
+                            "파일 미리보기를 사용할 수 없습니다."}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-light-gray)]/60">
+                          {detail.fileName}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 오른쪽: 이슈 상세 정보 */}
+              <div className="flex flex-col pt-[45px] pb-6">
+                <div className="space-y-7">
+                  <div>
+                    <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                      파일 연결
+                    </p>
+                    <p className="text-white font-semibold text-sm">
+                      {detail.connectionName} ({detail.serverTypeName})
+                    </p>
                   </div>
-                  <p className="text-sm text-[var(--color-text-light-gray)]">
-                    파일 미리보기 영역
-                  </p>
-                  <p className="text-xs text-[var(--color-text-light-gray)]/60">
-                    {selectedFile.fileName}
-                  </p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+                    {firstGridFields.map((field, index) => (
+                      <div key={index}>
+                        <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                          {field.label}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-white font-semibold text-sm",
+                            field.className,
+                          )}
+                        >
+                          {field.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+                    {secondGridFields.map((field, index) => (
+                      <div key={index}>
+                        <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                          {field.label}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-white font-semibold text-sm",
+                            field.className,
+                          )}
+                        >
+                          {field.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {piiDetails.length > 0 && (
+                    <div>
+                      <p className="text-[var(--color-text-light-gray)] mb-3 text-xs font-medium">
+                        개인정보 유형별 상세
+                      </p>
+                      <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-[var(--color-sidebar-bg)]">
+                            <tr className="text-[var(--color-text-light-gray)]">
+                              <th className="px-4 py-3 text-left border-b border-r border-[var(--color-content-border)]">
+                                유형명
+                              </th>
+                              <th className="px-4 py-3 text-left border-b border-r border-[var(--color-content-border)]">
+                                유형코드
+                              </th>
+                              <th className="px-4 py-3 text-left border-b border-[var(--color-content-border)]">
+                                개수
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {piiDetails.map((pii, idx) => (
+                              <tr
+                                key={idx}
+                                className="border-b border-[var(--color-content-border)] last:border-b-0"
+                              >
+                                <td className="px-4 py-3 text-white border-r border-[var(--color-content-border)]">
+                                  {pii.piiTypeName}
+                                </td>
+                                <td className="px-4 py-3 text-white border-r border-[var(--color-content-border)]">
+                                  {pii.piiTypeCode}
+                                </td>
+                                <td className="px-4 py-3 text-white tabular-nums">
+                                  {pii.count.toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+                    {thirdGridFields.map((field, index) => (
+                      <div key={index}>
+                        <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
+                          {field.label}
+                        </p>
+                        <p className="text-white font-semibold text-sm">
+                          {field.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* 오른쪽: 이슈 상세 정보 */}
-          <div className="flex flex-col pt-[45px] pb-6">
-            <div className="space-y-7">
-              <div>
-                <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                  파일 연결
-                </p>
-                <p className="text-white font-semibold text-sm">
-                  {issue.serverType}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7">
-                {firstGridFields.map((field, index) => (
-                  <div key={index}>
-                    <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                      {field.label}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-white font-semibold text-sm",
-                        field.className,
-                      )}
-                    >
-                      {field.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7">
-                {secondGridFields.map((field, index) => (
-                  <div key={index}>
-                    <p className="text-[var(--color-text-light-gray)] mb-1.5 text-xs font-medium">
-                      {field.label}
-                    </p>
-                    <p className="text-white font-semibold text-sm">
-                      {field.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+          </>
+        ) : null}
       </div>
     </Modal>
   );
 }
-

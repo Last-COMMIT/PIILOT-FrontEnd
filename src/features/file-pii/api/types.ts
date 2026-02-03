@@ -54,6 +54,100 @@ export interface GetFilePiiFilesParams {
   size?: number;
 }
 
+// --- 10. 파일 개인정보 이슈 API ---
+
+/** 10-1. 이슈 목록 한 건 (커넥션 그룹 내) */
+export interface FilePiiIssueItem {
+  issueId: number;
+  fileName: string;
+  filePath: string;
+  totalPiiCount: number;
+  piiTypes: string[];
+  riskLevel: "HIGH" | "MEDIUM" | "LOW";
+  userStatus: "ISSUE" | "RUNNING" | "DONE";
+  detectedAt: string;
+}
+
+/** 10-1. 커넥션별 이슈 그룹 */
+export interface FilePiiIssueConnectionGroup {
+  connectionId: number;
+  connectionName: string;
+  serverTypeName: string;
+  managerName: string;
+  issueCount: number;
+  issues: FilePiiIssueItem[];
+}
+
+/** 10-1. 이슈 목록 stats */
+export interface FilePiiIssuesStats {
+  totalIssues: number;
+  highRiskCount: number;
+  mediumRiskCount: number;
+  lowRiskCount: number;
+  totalPiiCount: number;
+}
+
+/** 10-1. 이슈 목록 content (Slice) */
+export interface FilePiiIssuesContent {
+  content: FilePiiIssueConnectionGroup[];
+  pageable: { pageNumber: number; pageSize: number };
+  first: boolean;
+  last: boolean;
+  hasNext: boolean;
+  numberOfElements: number;
+}
+
+/** 10-1. 이슈 목록 result */
+export interface FilePiiIssuesResult {
+  stats: FilePiiIssuesStats;
+  content: FilePiiIssuesContent;
+}
+
+/** 10-2. PII 유형별 상세 */
+export interface FilePiiPiiDetail {
+  piiTypeName: string;
+  piiTypeCode: string;
+  count: number;
+}
+
+/** 10-2. 이슈 상세 */
+export interface FilePiiIssueDetail {
+  issueId: number;
+  connectionName: string;
+  serverTypeName: string;
+  fileName: string;
+  filePath: string;
+  fileExtension: string;
+  fileCategory: string;
+  fileCategoryName: string;
+  mimeType: string;
+  previewAvailable: boolean;
+  fileContent: string | null;
+  previewMessage: string | null;
+  totalPiiCount: number;
+  maskedPiiCount: number;
+  unmaskedPiiCount: number;
+  riskLevel: string;
+  userStatus: string;
+  issueStatus: string;
+  detectedAt: string;
+  managerName: string;
+  managerEmail: string;
+  piiDetails: FilePiiPiiDetail[];
+}
+
+/** 10-3. 작업 상태 변경 요청 */
+export interface FilePiiIssueStatusRequest {
+  userStatus: "ISSUE" | "RUNNING" | "DONE";
+}
+
+/** 10-3. 작업 상태 변경 응답 */
+export interface FilePiiIssueStatusResult {
+  issueId: number;
+  userStatus: string;
+  updatedAt: string;
+}
+
 /** API 공통 응답 래퍼 */
 export interface ApiResponse<T> {
   success: boolean;
