@@ -264,7 +264,7 @@ export default function FilePrivacyIssuesPage() {
       align: "left",
       render: (value) => (
         <span className="tabular-nums">
-          {(value as number).toLocaleString()}
+          {((value as number) ?? 0).toLocaleString()}
         </span>
       ),
     },
