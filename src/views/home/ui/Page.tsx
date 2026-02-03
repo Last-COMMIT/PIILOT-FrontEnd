@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Database, FileText, TriangleAlert, Columns } from "lucide-react";
 import { StatCard, IssueCard, LineChart, DoughnutChart } from "@/shared/ui";
 import type {
@@ -7,198 +9,311 @@ import type {
   DoughnutChartData,
   IssueCardRiskLevel,
 } from "@/shared/ui";
+import {
+  getDashboardSummary,
+  getDashboardTrends,
+} from "@/features/dashboard";
+import type {
+  DashboardSummary,
+  DashboardTrends,
+  RecentDbIssue,
+  RecentFileIssue,
+} from "@/features/dashboard";
+import { formatDetectedAt, formatYearMonthToLabel } from "../lib/format";
 
-interface IssueData {
-  id: string;
-  timestamp: string;
-  title: string;
-  subtitle: string;
-  detectedCount: number;
-  riskLevel: IssueCardRiskLevel;
+const CHART_CARD_H = 280;
+const LINE_CHART_H = 230;
+
+// 개인정보 유형별 색상 매핑 (도넛 차트용)
+const PII_TYPE_COLORS: Record<string, string> = {
+  이름: "rgb(59, 130, 246)",
+  전화번호: "rgb(249, 115, 22)",
+  이메일: "rgb(234, 179, 8)",
+  주소: "rgb(74, 222, 128)",
+  계좌번호: "rgb(34, 211, 238)",
+  주민등록번호: "rgb(236, 72, 153)",
+  IP주소: "rgb(167, 139, 250)",
+  여권번호: "rgb(239, 68, 68)",
+  얼굴: "rgb(180, 83, 9)",
+  주민번호: "rgb(236, 72, 153)",
+};
+
+const riskLevelToIssueCardRisk: Record<string, IssueCardRiskLevel> = {
+  HIGH: "high",
+  MEDIUM: "medium",
+  LOW: "low",
+};
+
+function dbIssueToIssueData(issue: RecentDbIssue) {
+  return {
+    id: String(issue.issueId),
+    timestamp: formatDetectedAt(issue.detectedAt),
+    title: `${issue.tableName} (${issue.columnName})`,
+    subtitle: issue.piiTypes.join(", ") || "개인정보 암호화 필요",
+    detectedCount: issue.piiCount,
+    riskLevel: riskLevelToIssueCardRisk[issue.riskLevel] ?? "medium",
+  };
+}
+
+function fileIssueToIssueData(issue: RecentFileIssue) {
+  return {
+    id: String(issue.issueId),
+    timestamp: formatDetectedAt(issue.detectedAt),
+    title: `${issue.fileName} (${issue.connectionName})`,
+    subtitle: issue.piiTypes.join(", ") || "개인정보 마스킹 필요",
+    detectedCount: issue.piiCount,
+    riskLevel: riskLevelToIssueCardRisk[issue.riskLevel] ?? "medium",
+  };
 }
 
 export default function HomePage() {
-  const CHART_CARD_H = 280;
-  const LINE_CHART_H = 230;
+  const router = useRouter();
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [trends, setTrends] = useState<DashboardTrends | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiNotReady, setApiNotReady] = useState(false);
 
-  const dbServerData: LineChartData = {
-    labels: [
-      "1월",
-      "2월",
-      "3월",
-      "4월",
-      "5월",
-      "6월",
-      "7월",
-      "8월",
-      "9월",
-      "10월",
-      "11월",
-      "12월",
-    ],
-    datasets: [
-      {
-        label: "DB 서버 암호화",
-        data: [65, 20, 35, 28, 40, 22, 55, 33, 48, 44, 78, 45],
-        borderColor: "rgb(74, 222, 128)",
-        backgroundColor: "rgba(74, 222, 128, 0.10)",
-        fill: true,
-      },
-    ],
-  };
+  /** 백엔드에 대시보드 API 미구현 시 반환하는 메시지 패턴 */
+  const NOT_IMPLEMENTED_PATTERN = /no static resource|api\/dashboard/i;
 
-  const fileServerData: LineChartData = {
-    labels: [
-      "1월",
-      "2월",
-      "3월",
-      "4월",
-      "5월",
-      "6월",
-      "7월",
-      "8월",
-      "9월",
-      "10월",
-      "11월",
-      "12월",
-    ],
-    datasets: [
-      {
-        label: "파일 서버 암호화",
-        data: [68, 55, 62, 18, 30, 25, 35, 28, 72, 20, 55, 48],
-        borderColor: "rgb(248, 113, 113)",
-        backgroundColor: "rgba(248, 113, 113, 0.10)",
-        fill: true,
-      },
-    ],
-  };
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setLoading(true);
+      setError(null);
+      setApiNotReady(false);
+      Promise.all([getDashboardSummary(), getDashboardTrends()])
+        .then(([summaryRes, trendsRes]) => {
+          let hasSummary = false;
+          let hasTrends = false;
+          let hasError = false;
+          let errorMsg = "";
+          let summaryNotReady = false;
+          let trendsNotReady = false;
 
-  const personalInfoLegend = [
-    { label: "이름", color: "rgb(59, 130, 246)" },
-    { label: "전화번호", color: "rgb(249, 115, 22)" },
-    { label: "이메일", color: "rgb(234, 179, 8)" },
-    { label: "주소", color: "rgb(74, 222, 128)" },
-    { label: "계좌번호", color: "rgb(34, 211, 238)" },
-    { label: "주민등록번호", color: "rgb(236, 72, 153)" },
-    { label: "IP주소", color: "rgb(167, 139, 250)" },
-    { label: "여권번호", color: "rgb(239, 68, 68)" },
-    { label: "얼굴", color: "rgb(180, 83, 9)" },
-  ] as const;
+          // Summary 처리
+          if (summaryRes.success && summaryRes.result) {
+            setSummary(summaryRes.result);
+            hasSummary = true;
+          } else {
+            const msg = summaryRes.message ?? "";
+            const isNotReady =
+              summaryRes.httpStatus === 403 || NOT_IMPLEMENTED_PATTERN.test(msg);
+            if (isNotReady) {
+              summaryNotReady = true;
+            } else {
+              hasError = true;
+              errorMsg = msg || "대시보드 요약 데이터를 불러오지 못했습니다.";
+            }
+          }
 
-  const personalInfoData: DoughnutChartData = {
-    labels: personalInfoLegend.map((l) => l.label),
-    datasets: [
-      {
-        label: "개인정보 유형별 분포",
-        data: [18, 14, 12, 10, 9, 8, 7, 6, 5],
-        backgroundColor: personalInfoLegend.map((l) => l.color),
-        borderColor: personalInfoLegend.map((l) => l.color),
-        borderWidth: 1,
-      },
-    ],
-  };
+          // Trends 처리
+          if (trendsRes.success && trendsRes.result) {
+            setTrends(trendsRes.result);
+            hasTrends = true;
+          } else {
+            const msg = trendsRes.message ?? "";
+            const isNotReady =
+              trendsRes.httpStatus === 403 || NOT_IMPLEMENTED_PATTERN.test(msg);
+            if (isNotReady) {
+              trendsNotReady = true;
+            } else if (!hasError) {
+              hasError = true;
+              errorMsg = msg || "대시보드 추세 데이터를 불러오지 못했습니다.";
+            }
+          }
 
-  const dbServerIssues: IssueData[] = [
-    {
-      id: "db-1",
-      timestamp: "2025-01-07 16:13:11",
-      title: "orders (delivery_address)",
-      subtitle: "주소 정보 암호화 필요",
-      detectedCount: 100,
-      riskLevel: "high",
-    },
-    {
-      id: "db-2",
-      timestamp: "2025-01-07 15:30:22",
-      title: "users (email)",
-      subtitle: "이메일 정보 암호화 필요",
-      detectedCount: 50,
-      riskLevel: "low",
-    },
-    {
-      id: "db-3",
-      timestamp: "2025-01-07 14:20:15",
-      title: "orders (phone_number)",
-      subtitle: "전화번호 정보 암호화 필요",
-      detectedCount: 75,
-      riskLevel: "medium",
-    },
-    {
-      id: "db-4",
-      timestamp: "2025-01-07 12:05:03",
-      title: "customers (resident_id)",
-      subtitle: "주민등록번호 정보 암호화 필요",
-      detectedCount: 18,
-      riskLevel: "medium",
-    },
-  ];
+          if (summaryNotReady && trendsNotReady) {
+            setApiNotReady(true);
+            return;
+          }
+          setApiNotReady(false);
+          if (!hasSummary && !hasTrends) {
+            if (hasError) setError(errorMsg);
+            else setApiNotReady(true);
+          }
+        })
+        .catch((e) => {
+          setError("대시보드 데이터를 불러오는 중 오류가 발생했습니다.");
+          console.error(e);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
-  const fileServerIssues: IssueData[] = [
-    {
-      id: "file-1",
-      timestamp: "2025-01-07 16:13:11",
-      title: "data.jpg (S3 Storage)",
-      subtitle: "이름, 주소, 주민등록번호, IP주소, 전화번호, 계좌번호, 이메일",
-      detectedCount: 100,
-      riskLevel: "high",
-    },
-    {
-      id: "file-2",
-      timestamp: "2025-01-07 16:13:11",
-      title: "resume.pdf (S3 Storage)",
-      subtitle: "주소 정보 암호화 필요",
-      detectedCount: 100,
-      riskLevel: "medium",
-    },
-    {
-      id: "file-3",
-      timestamp: "2025-01-07 16:13:11",
-      title: "data.jpg (S3 Storage)",
-      subtitle: "이름, 주소, 주민등록번호",
-      detectedCount: 100,
-      riskLevel: "low",
-    },
-    {
-      id: "file-4",
-      timestamp: "2025-01-07 11:22:40",
-      title: "passport.png (S3 Storage)",
-      subtitle: "여권번호 포함 이미지",
-      detectedCount: 6,
-      riskLevel: "medium",
-    },
-  ];
+  const dbServerData: LineChartData = useMemo(() => {
+    if (!trends?.dbTrend) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: "DB 서버 암호화",
+            data: [],
+            borderColor: "rgb(74, 222, 128)",
+            backgroundColor: "rgba(74, 222, 128, 0.10)",
+            fill: true,
+          },
+        ],
+      };
+    }
+    return {
+      labels: trends.dbTrend.map((t) => formatYearMonthToLabel(t.yearMonth)),
+      datasets: [
+        {
+          label: "DB 서버 암호화",
+          data: trends.dbTrend.map((t) => t.issueCount),
+          borderColor: "rgb(74, 222, 128)",
+          backgroundColor: "rgba(74, 222, 128, 0.10)",
+          fill: true,
+        },
+      ],
+    };
+  }, [trends]);
+
+  const fileServerData: LineChartData = useMemo(() => {
+    if (!trends?.fileTrend) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: "파일 서버 암호화",
+            data: [],
+            borderColor: "rgb(248, 113, 113)",
+            backgroundColor: "rgba(248, 113, 113, 0.10)",
+            fill: true,
+          },
+        ],
+      };
+    }
+    return {
+      labels: trends.fileTrend.map((t) => formatYearMonthToLabel(t.yearMonth)),
+      datasets: [
+        {
+          label: "파일 서버 암호화",
+          data: trends.fileTrend.map((t) => t.issueCount),
+          borderColor: "rgb(248, 113, 113)",
+          backgroundColor: "rgba(248, 113, 113, 0.10)",
+          fill: true,
+        },
+      ],
+    };
+  }, [trends]);
+
+  const personalInfoData: DoughnutChartData = useMemo(() => {
+    if (!summary?.piiDistribution || summary.piiDistribution.length === 0) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: "개인정보 유형별 분포",
+            data: [],
+            backgroundColor: [],
+            borderColor: [],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
+    const dist = summary.piiDistribution;
+    return {
+      labels: dist.map((d) => d.piiTypeName),
+      datasets: [
+        {
+          label: "개인정보 유형별 분포",
+          data: dist.map((d) => d.count),
+          backgroundColor: dist.map(
+            (d) => PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
+          ),
+          borderColor: dist.map(
+            (d) => PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
+          ),
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [summary]);
+
+  const personalInfoLegend = useMemo(() => {
+    if (!summary?.piiDistribution) return [];
+    return summary.piiDistribution.map((d) => ({
+      label: d.piiTypeName,
+      color: PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
+    }));
+  }, [summary]);
+
+  const dbServerIssues = useMemo(() => {
+    return summary?.recentDbIssues?.map(dbIssueToIssueData) ?? [];
+  }, [summary]);
+
+  const fileServerIssues = useMemo(() => {
+    return summary?.recentFileIssues?.map(fileIssueToIssueData) ?? [];
+  }, [summary]);
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div
+          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
+          aria-label="로딩 중"
+        />
+      </div>
+    );
+  }
+
+  if (apiNotReady) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-[var(--color-text-light-gray)]">
+          대시보드 API가 준비되면 데이터가 표시됩니다.
+        </p>
+      </div>
+    );
+  }
+
+  if (error && !summary && !trends) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-[var(--color-text-light-gray)]">{error}</p>
+      </div>
+    );
+  }
+
+  const stats = summary?.stats;
 
   return (
     <div className="h-full flex flex-col p-6 gap-5 overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 shrink-0">
         <StatCard
           title="총 서버 연결"
-          value="6"
-          detail="DB: 3 | 파일: 3"
+          value={String(stats?.totalConnections ?? 0)}
+          detail={`DB: ${stats?.dbConnectionCount ?? 0} | 파일: ${stats?.fileConnectionCount ?? 0}`}
           trend="up"
           icon={<Database className="size-5" />}
           colorScheme="mint"
         />
         <StatCard
           title="개인정보 포함 컬럼 수"
-          value="625,500"
-          detail="암호화 91%"
+          value={(stats?.piiColumnCount ?? 0).toLocaleString()}
+          detail={`암호화 ${(stats?.columnEncryptionRate ?? 0).toFixed(0)}%`}
           trend="up"
           icon={<Columns className="size-5" />}
           colorScheme="purple"
         />
         <StatCard
           title="개인정보 포함 파일 수"
-          value="250"
-          detail="암호화 60%"
+          value={(stats?.piiFileCount ?? 0).toLocaleString()}
+          detail={`암호화 ${(stats?.fileEncryptionRate ?? 0).toFixed(0)}%`}
           trend="up"
           icon={<FileText className="size-5" />}
           colorScheme="green"
         />
         <StatCard
           title="총 이슈 개수"
-          value="4"
-          detail="DB: 3 | 파일: 1"
+          value={String(stats?.totalIssueCount ?? 0)}
+          detail={`DB: ${stats?.dbIssueCount ?? 0} | 파일: ${stats?.fileIssueCount ?? 0}`}
           trend="up"
           icon={<TriangleAlert className="size-5" />}
           colorScheme="coral"
@@ -236,28 +351,36 @@ export default function HomePage() {
             개인정보 유형별 분포
           </h3>
           <div className="flex-1 gap-4 min-h-0 flex flex-col items-center justify-center">
-            <div className="w-full max-w-[240px] mb-4">
-              <DoughnutChart
-                data={personalInfoData}
-                height={200}
-                showLegend={false}
-              />
-            </div>
-            <div className="w-full grid grid-cols-3 gap-x-3 gap-y-2 text-sm text-[var(--color-text-muted)] shrink-0">
-              {personalInfoLegend.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-2 min-w-0"
-                >
-                  <span
-                    className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: item.color }}
-                    aria-hidden
+            {personalInfoData.labels.length > 0 ? (
+              <>
+                <div className="w-full max-w-[240px] mb-4">
+                  <DoughnutChart
+                    data={personalInfoData}
+                    height={200}
+                    showLegend={false}
                   />
-                  <span className="truncate">{item.label}</span>
                 </div>
-              ))}
-            </div>
+                <div className="w-full grid grid-cols-3 gap-x-3 gap-y-2 text-sm text-[var(--color-text-muted)] shrink-0">
+                  {personalInfoLegend.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-2 min-w-0"
+                    >
+                      <span
+                        className="size-2 rounded-full shrink-0"
+                        style={{ backgroundColor: item.color }}
+                        aria-hidden
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-[var(--color-text-light-gray)] text-sm">
+                데이터가 없습니다.
+              </p>
+            )}
           </div>
         </div>
 
@@ -266,21 +389,38 @@ export default function HomePage() {
             <h3 className="text-sm font-semibold text-white">
               DB 서버 개인정보 이슈
             </h3>
-            <button className="text-xs text-[var(--color-mint-text)] hover:underline">
+            <button
+              className="text-xs text-[var(--color-mint-text)] hover:underline cursor-pointer"
+              onClick={() => router.push("/privacy/db/issues")}
+            >
               전체보기
             </button>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
-            {dbServerIssues.map((issue) => (
-              <IssueCard
-                key={issue.id}
-                timestamp={issue.timestamp}
-                title={issue.title}
-                subtitle={issue.subtitle}
-                detectedCount={issue.detectedCount}
-                riskLevel={issue.riskLevel}
-              />
-            ))}
+            {dbServerIssues.length > 0 ? (
+              dbServerIssues.map((issue) => (
+                <button
+                  key={issue.id}
+                  type="button"
+                  className="cursor-pointer text-left"
+                  onClick={() =>
+                    router.push(`/privacy/db/issues?issueId=${issue.id}`)
+                  }
+                >
+                  <IssueCard
+                    timestamp={issue.timestamp}
+                    title={issue.title}
+                    subtitle={issue.subtitle}
+                    detectedCount={issue.detectedCount}
+                    riskLevel={issue.riskLevel}
+                  />
+                </button>
+              ))
+            ) : (
+              <p className="text-[var(--color-text-light-gray)] text-sm text-center py-4">
+                이슈가 없습니다.
+              </p>
+            )}
           </div>
         </div>
 
@@ -289,21 +429,38 @@ export default function HomePage() {
             <h3 className="text-sm font-semibold text-white">
               파일 서버 개인정보 이슈
             </h3>
-            <button className="text-xs text-[var(--color-mint-text)] hover:underline">
+            <button
+              className="text-xs text-[var(--color-mint-text)] hover:underline cursor-pointer"
+              onClick={() => router.push("/privacy/file/issues")}
+            >
               전체보기
             </button>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
-            {fileServerIssues.map((issue) => (
-              <IssueCard
-                key={issue.id}
-                timestamp={issue.timestamp}
-                title={issue.title}
-                subtitle={issue.subtitle}
-                detectedCount={issue.detectedCount}
-                riskLevel={issue.riskLevel}
-              />
-            ))}
+            {fileServerIssues.length > 0 ? (
+              fileServerIssues.map((issue) => (
+                <button
+                  key={issue.id}
+                  type="button"
+                  className="cursor-pointer text-left"
+                  onClick={() =>
+                    router.push(`/privacy/file/issues?issueId=${issue.id}`)
+                  }
+                >
+                  <IssueCard
+                    timestamp={issue.timestamp}
+                    title={issue.title}
+                    subtitle={issue.subtitle}
+                    detectedCount={issue.detectedCount}
+                    riskLevel={issue.riskLevel}
+                  />
+                </button>
+              ))
+            ) : (
+              <p className="text-[var(--color-text-light-gray)] text-sm text-center py-4">
+                이슈가 없습니다.
+              </p>
+            )}
           </div>
         </div>
       </div>
