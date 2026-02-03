@@ -100,13 +100,18 @@ export default function FilePrivacyIssuesPage() {
 
   // URL 쿼리 파라미터에서 issueId 읽기
   useEffect(() => {
-    const issueIdParam = searchParams.get("issueId");
-    if (issueIdParam) {
-      const issueId = parseInt(issueIdParam, 10);
-      if (!Number.isNaN(issueId)) {
-        setSelectedIssueId(issueId);
+    const id = setTimeout(() => {
+      const issueIdParam = searchParams.get("issueId");
+      if (issueIdParam) {
+        const issueId = parseInt(issueIdParam, 10);
+        if (!Number.isNaN(issueId)) {
+          setSelectedIssueId(issueId);
+          return;
+        }
       }
-    }
+      setSelectedIssueId(null);
+    }, 0);
+    return () => clearTimeout(id);
   }, [searchParams]);
 
   const loadIssues = useCallback(

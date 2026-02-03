@@ -407,9 +407,10 @@ export default function HomePage() {
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
             {dbServerIssues.length > 0 ? (
               dbServerIssues.map((issue) => (
-                <div
+                <button
                   key={issue.id}
-                  className="cursor-pointer"
+                  type="button"
+                  className="cursor-pointer text-left"
                   onClick={() =>
                     router.push(`/privacy/db/issues?issueId=${issue.id}`)
                   }
@@ -421,7 +422,7 @@ export default function HomePage() {
                     detectedCount={issue.detectedCount}
                     riskLevel={issue.riskLevel}
                   />
-                </div>
+                </button>
               ))
             ) : (
               <p className="text-[var(--color-text-light-gray)] text-sm text-center py-4">
@@ -446,9 +447,10 @@ export default function HomePage() {
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[0.575rem]">
             {fileServerIssues.length > 0 ? (
               fileServerIssues.map((issue) => (
-                <div
+                <button
                   key={issue.id}
-                  className="cursor-pointer"
+                  type="button"
+                  className="cursor-pointer text-left"
                   onClick={() =>
                     router.push(`/privacy/file/issues?issueId=${issue.id}`)
                   }
@@ -460,7 +462,7 @@ export default function HomePage() {
                     detectedCount={issue.detectedCount}
                     riskLevel={issue.riskLevel}
                   />
-                </div>
+                </button>
               ))
             ) : (
               <p className="text-[var(--color-text-light-gray)] text-sm text-center py-4">
