@@ -179,12 +179,9 @@ export default function FilePrivacyIssuesPage() {
     currentStatus: WorkStatus,
   ) => {
     if (statusChangingId === issueId) return;
+    if (currentStatus === "해결완료") return; // 이미 완료된 상태
     const nextStatus: WorkStatus =
-      currentStatus === "진행시작"
-        ? "진행중"
-        : currentStatus === "진행중"
-          ? "해결완료"
-          : "해결완료";
+      currentStatus === "진행시작" ? "진행중" : "해결완료";
     const apiStatus = workStatusToApi[nextStatus];
     setStatusChangingId(issueId);
     try {
