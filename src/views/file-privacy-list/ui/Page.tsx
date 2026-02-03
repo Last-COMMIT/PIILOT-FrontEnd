@@ -193,6 +193,7 @@ export default function FilePrivacyListPage() {
 
   useEffect(() => {
     const id = setTimeout(() => {
+      setPage(0);
       setLoading(true);
       loadFiles(0, false).finally(() => setLoading(false));
     }, 0);
