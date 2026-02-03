@@ -1,254 +1,214 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Lock, FileText, Folder } from "lucide-react";
 import { StatCard, Table, Button, TableSection } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import IssueDetailModal from "./IssueDetailModal";
+import {
+  getFilePiiIssues,
+  patchFilePiiIssueStatus,
+} from "@/features/file-pii";
+import type {
+  FilePiiIssueConnectionGroup,
+  FilePiiIssueItem,
+  FilePiiIssuesStats,
+} from "@/features/file-pii";
 
 type RiskLevel = "높음" | "중간" | "낮음";
 type WorkStatus = "진행중" | "해결완료" | "진행시작";
 
-interface FileIssue extends Record<string, unknown> {
+const riskLevelToLabel: Record<string, RiskLevel> = {
+  HIGH: "높음",
+  MEDIUM: "중간",
+  LOW: "낮음",
+};
+
+const userStatusToLabel: Record<string, WorkStatus> = {
+  ISSUE: "진행시작",
+  RUNNING: "진행중",
+  DONE: "해결완료",
+};
+
+const workStatusToApi: Record<WorkStatus, "ISSUE" | "RUNNING" | "DONE"> = {
+  진행시작: "ISSUE",
+  진행중: "RUNNING",
+  해결완료: "DONE",
+};
+
+interface IssueColumn extends Record<string, unknown> {
   id: string;
+  issueId: number;
   fileName: string;
   filePath: string;
-  personalInfoCount: number;
   personalInfoType: string;
+  personalInfoCount: number;
   riskLevel: RiskLevel;
   workStatus: WorkStatus;
 }
 
-interface FileServerIssue {
+interface ConnectionIssue {
   id: string;
-  serverName: string;
+  connectionId: number;
+  connectionName: string;
   serverType: string;
   manager: string;
   issueCount: number;
-  files: FileIssue[];
+  files: IssueColumn[];
 }
 
-const generateMockIssues = (): FileServerIssue[] => {
-  return [
-    {
-      id: "s3-doc-1",
-      serverName: "S3 Document Storage",
-      serverType: "Amazon S3",
-      manager: "홍길동 대리",
-      issueCount: 1,
-      files: [
-        {
-          id: "s3-doc-1-payment",
-          fileName: "payment_capture.png",
-          filePath: "desktop/payment/add",
-          personalInfoCount: 5,
-          personalInfoType: "이름, 전화번호",
-          riskLevel: "낮음",
-          workStatus: "진행중",
-        },
-      ],
-    },
-    {
-      id: "s3-doc-2",
-      serverName: "S3 Document Storage",
-      serverType: "Amazon S3",
-      manager: "김철수 대리",
-      issueCount: 2,
-      files: [
-        {
-          id: "s3-doc-2-profile",
-          fileName: "profile_photo.png",
-          filePath: "desktop/user/add",
-          personalInfoCount: 9,
-          personalInfoType:
-            "이름, 주민번호, 주소, IP주소, 전화번호, 계좌번호, 이메일",
-          riskLevel: "높음",
-          workStatus: "진행중",
-        },
-        {
-          id: "s3-doc-2-guide",
-          fileName: "user_guide.txt",
-          filePath: "desktop/user/add",
-          personalInfoCount: 3,
-          personalInfoType: "이름, 전화번호",
-          riskLevel: "중간",
-          workStatus: "해결완료",
-        },
-      ],
-    },
-    {
-      id: "nas-legacy",
-      serverName: "Legacy NAS Share",
-      serverType: "Legacy NAS Share",
-      manager: "이순신 과장",
-      issueCount: 1,
-      files: [
-        {
-          id: "nas-legacy-notice",
-          fileName: "notice_content.docs",
-          filePath: "desktop/notice/list",
-          personalInfoCount: 2,
-          personalInfoType: "이름, 전화번호",
-          riskLevel: "낮음",
-          workStatus: "진행중",
-        },
-      ],
-    },
-    {
-      id: "azure-storage",
-      serverName: "Azure Blob Storage",
-      serverType: "Azure Blob Storage",
-      manager: "박영희 대리",
-      issueCount: 2,
-      files: [
-        {
-          id: "azure-storage-contract",
-          fileName: "contract_2024.pdf",
-          filePath: "documents/legal/contracts",
-          personalInfoCount: 12,
-          personalInfoType: "이름, 주민번호, 주소, 계좌번호, 이메일, 전화번호",
-          riskLevel: "높음",
-          workStatus: "진행시작",
-        },
-        {
-          id: "azure-storage-invoice",
-          fileName: "invoice_january.xlsx",
-          filePath: "documents/finance/invoices",
-          personalInfoCount: 7,
-          personalInfoType: "이름, 이메일, 전화번호, 계좌번호",
-          riskLevel: "중간",
-          workStatus: "진행중",
-        },
-      ],
-    },
-    {
-      id: "gcp-storage",
-      serverName: "Google Cloud Storage",
-      serverType: "Google Cloud Storage",
-      manager: "최민수 과장",
-      issueCount: 3,
-      files: [
-        {
-          id: "gcp-storage-resume",
-          fileName: "employee_resume_2024.docx",
-          filePath: "hr/recruitment/resumes",
-          personalInfoCount: 15,
-          personalInfoType: "이름, 주민번호, 주소, 전화번호, 이메일, 학력, 경력",
-          riskLevel: "높음",
-          workStatus: "진행중",
-        },
-        {
-          id: "gcp-storage-medical",
-          fileName: "medical_record_backup.dat",
-          filePath: "healthcare/records/backup",
-          personalInfoCount: 8,
-          personalInfoType: "이름, 주민번호, 진단정보, 처방전",
-          riskLevel: "높음",
-          workStatus: "해결완료",
-        },
-        {
-          id: "gcp-storage-log",
-          fileName: "access_log_2024.csv",
-          filePath: "logs/security/access",
-          personalInfoCount: 4,
-          personalInfoType: "IP주소, 쿠키정보",
-          riskLevel: "낮음",
-          workStatus: "진행시작",
-        },
-      ],
-    },
-    {
-      id: "local-nas",
-      serverName: "Local NAS Server",
-      serverType: "Local NAS Server",
-      manager: "정수진 대리",
-      issueCount: 1,
-      files: [
-        {
-          id: "local-nas-backup",
-          fileName: "customer_database_backup.sql",
-          filePath: "backup/database/daily",
-          personalInfoCount: 25,
-          personalInfoType: "이름, 주민번호, 주소, 전화번호, 이메일, 계좌번호, 신용카드번호",
-          riskLevel: "높음",
-          workStatus: "진행중",
-        },
-      ],
-    },
-  ];
-};
+function apiGroupToConnectionIssue(g: FilePiiIssueConnectionGroup): ConnectionIssue {
+  return {
+    id: String(g.connectionId),
+    connectionId: g.connectionId,
+    connectionName: g.connectionName,
+    serverType: g.serverTypeName,
+    manager: g.managerName,
+    issueCount: g.issueCount,
+    files: g.issues.map((item: FilePiiIssueItem) => ({
+      id: String(item.issueId),
+      issueId: item.issueId,
+      fileName: item.fileName,
+      filePath: item.filePath,
+      personalInfoType: item.piiTypes.join(", "),
+      personalInfoCount: item.totalPiiCount,
+      riskLevel: riskLevelToLabel[item.riskLevel] ?? "높음",
+      workStatus: userStatusToLabel[item.userStatus] ?? "진행시작",
+    })),
+  };
+}
+
+const PAGE_SIZE = 10;
+
+/** 백엔드에 10-1 API 미구현 시 반환하는 메시지. 이 경우 빈 목록으로 처리 */
+const NOT_IMPLEMENTED_PATTERN = /no static resource|api\/file-pii\/issues/i;
 
 export default function FilePrivacyIssuesPage() {
-  const [issues, setIssues] = useState<FileServerIssue[]>(generateMockIssues());
-  const [selected, setSelected] = useState<{
-    issueId: string;
-    fileId: string;
-  } | null>(null);
+  const [connectionIssues, setConnectionIssues] = useState<ConnectionIssue[]>([]);
+  const [stats, setStats] = useState<FilePiiIssuesStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiNotReady, setApiNotReady] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
+  const [statusChangingId, setStatusChangingId] = useState<number | null>(null);
 
-  const stats = useMemo(() => {
-    let totalFiles = 0;
-    let highRisk = 0;
-    let mediumRisk = 0;
-    let lowRisk = 0;
-    let totalPersonalInfo = 0;
+  const loadIssues = useCallback(
+    async (pageNum: number, append: boolean): Promise<boolean> => {
+      const res = await getFilePiiIssues({ page: pageNum, size: PAGE_SIZE });
+      if (!res.success) {
+        const msg = res.message ?? "";
+        if (NOT_IMPLEMENTED_PATTERN.test(msg)) {
+          setApiNotReady(true);
+          setError(null);
+          if (!append) setConnectionIssues([]);
+          setStats(null);
+          setHasNext(false);
+          return false;
+        }
+        setApiNotReady(false);
+        setError(msg || "이슈 목록을 불러오지 못했습니다.");
+        if (!append) setConnectionIssues([]);
+        setHasNext(false);
+        return false;
+      }
+      setApiNotReady(false);
+      setError(null);
+      if (res.result) {
+        const rawContent = res.result.content;
+        // 명세: result.content = { content: [], hasNext, ... }. 일부 백엔드는 result.content = [] 로 보낼 수 있음
+        const contentArray: FilePiiIssueConnectionGroup[] = Array.isArray(rawContent)
+          ? rawContent
+          : Array.isArray((rawContent as { content?: FilePiiIssueConnectionGroup[] })?.content)
+            ? (rawContent as { content: FilePiiIssueConnectionGroup[] }).content
+            : [];
+        const list = contentArray
+          .filter(
+            (g): g is FilePiiIssueConnectionGroup =>
+              g != null &&
+              typeof g.connectionId === "number" &&
+              Array.isArray(g.issues),
+          )
+          .map(apiGroupToConnectionIssue);
+        if (append) {
+          setConnectionIssues((prev) => [...prev, ...list]);
+        } else {
+          setConnectionIssues(list);
+        }
+        setStats(res.result.stats ?? null);
+        const slice =
+          rawContent && !Array.isArray(rawContent)
+            ? (rawContent as { hasNext?: boolean })
+            : null;
+        setHasNext(Boolean(slice?.hasNext));
+        return true;
+      }
+      if (!append) setConnectionIssues([]);
+      setStats(null);
+      setHasNext(false);
+      return false;
+    },
+    [],
+  );
 
-    issues.forEach((issue) => {
-      totalFiles += issue.files.length;
-      issue.files.forEach((file) => {
-        totalPersonalInfo += file.personalInfoCount;
-        if (file.riskLevel === "높음") highRisk++;
-        else if (file.riskLevel === "중간") mediumRisk++;
-        else if (file.riskLevel === "낮음") lowRisk++;
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setLoading(true);
+      loadIssues(0, false).finally(() => setLoading(false));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [loadIssues]);
+
+  const handleLoadMore = async () => {
+    const nextPage = page + 1;
+    const success = await loadIssues(nextPage, true);
+    if (success) {
+      setPage(nextPage);
+    }
+  };
+
+  const handleWorkStatusClick = async (
+    connectionId: number,
+    issueId: number,
+    currentStatus: WorkStatus,
+  ) => {
+    if (statusChangingId === issueId) return;
+    const nextStatus: WorkStatus =
+      currentStatus === "진행시작"
+        ? "진행중"
+        : currentStatus === "진행중"
+          ? "해결완료"
+          : "해결완료";
+    const apiStatus = workStatusToApi[nextStatus];
+    setStatusChangingId(issueId);
+    try {
+      const res = await patchFilePiiIssueStatus(issueId, {
+        userStatus: apiStatus,
       });
-    });
-
-    return {
-      totalFiles,
-      highRisk,
-      mediumRisk,
-      lowRisk,
-      totalPersonalInfo,
-    };
-  }, [issues]);
-
-  const handleCloseModal = () => {
-    setSelected(null);
-  };
-
-  const selectedIssue = useMemo(() => {
-    if (!selected) return null;
-    return issues.find((i) => i.id === selected.issueId) ?? null;
-  }, [issues, selected]);
-
-  const selectedFile = useMemo(() => {
-    if (!selected || !selectedIssue) return null;
-    return selectedIssue.files.find((f) => f.id === selected.fileId) ?? null;
-  }, [selected, selectedIssue]);
-
-  const handleRowDetailClick = (issueId: string, fileId: string) => {
-    setSelected({ issueId, fileId });
-  };
-
-  const handleWorkStatusClick = (issueId: string, fileId: string) => {
-    setIssues((prev) =>
-      prev.map((issue) => {
-        if (issue.id !== issueId) return issue;
-        return {
-          ...issue,
-          files: issue.files.map((file) => {
-            if (file.id !== fileId) return file;
-            const next: WorkStatus =
-              file.workStatus === "진행시작"
-                ? "진행중"
-                : file.workStatus === "진행중"
-                  ? "해결완료"
-                  : "해결완료";
-            return { ...file, workStatus: next };
+      if (res.success && res.result) {
+        setConnectionIssues((prev) =>
+          prev.map((conn) => {
+            if (conn.connectionId !== connectionId) return conn;
+            return {
+              ...conn,
+              files: conn.files.map((file) => {
+                if (file.issueId !== issueId) return file;
+                return { ...file, workStatus: nextStatus };
+              }),
+            };
           }),
-        };
-      }),
-    );
+        );
+      } else {
+        alert(res.message || "작업 상태 변경에 실패했습니다.");
+      }
+    } catch (e) {
+      alert("작업 상태 변경 중 오류가 발생했습니다.");
+      console.error(e);
+    } finally {
+      setStatusChangingId(null);
+    }
   };
 
   const getWorkStatusButtonProps = (status: WorkStatus) => {
@@ -267,7 +227,7 @@ export default function FilePrivacyIssuesPage() {
     }
   };
 
-  const getFileColumns = (issue: FileServerIssue): TableColumn<FileIssue>[] => [
+  const getFileColumns = (issue: ConnectionIssue): TableColumn<IssueColumn>[] => [
     {
       id: "fileName",
       label: "파일명",
@@ -340,15 +300,19 @@ export default function FilePrivacyIssuesPage() {
           status === "진행시작"
             ? "bg-[var(--color-green-text)] text-black hover:opacity-90"
             : "";
+        const isChanging = statusChangingId === row.issueId;
         return (
           <Button
             size="sm"
             colorScheme={btn.colorScheme}
             appearance={btn.appearance}
             className={cn("min-w-[84px]", extraClass)}
-            onClick={() => handleWorkStatusClick(issue.id, row.id)}
+            onClick={() =>
+              handleWorkStatusClick(issue.connectionId, row.issueId, status)
+            }
+            disabled={isChanging}
           >
-            {status}
+            {isChanging ? "변경 중..." : status}
           </Button>
         );
       },
@@ -362,7 +326,7 @@ export default function FilePrivacyIssuesPage() {
         <button
           type="button"
           className="cursor-pointer text-sm font-semibold text-white/90 hover:text-white hover:underline underline-offset-4"
-          onClick={() => handleRowDetailClick(issue.id, row.id)}
+          onClick={() => setSelectedIssueId(row.issueId)}
         >
           상세보기
         </button>
@@ -370,36 +334,68 @@ export default function FilePrivacyIssuesPage() {
     },
   ];
 
+  if (loading && connectionIssues.length === 0) {
+    return (
+      <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
+        <div className="flex items-center justify-center h-full">
+          <p className="text-[var(--color-text-light-gray)]">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (apiNotReady) {
+    return (
+      <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
+        <div className="flex items-center justify-center h-full">
+          <p className="text-[var(--color-text-light-gray)]">
+            이슈 API가 준비되면 데이터가 표시됩니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
+        <div className="flex items-center justify-center h-full">
+          <p className="text-[var(--color-text-light-gray)]">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
       <div className="grid grid-cols-5 gap-4 shrink-0">
         <StatCard
           title="총 이슈 파일"
-          value={stats.totalFiles}
+          value={stats?.totalIssues ?? 0}
           icon={<AlertTriangle className="size-5" />}
           colorScheme="purple"
         />
         <StatCard
           title="위험도 높음"
-          value={stats.highRisk}
+          value={stats?.highRiskCount ?? 0}
           icon={<Lock className="size-5" />}
           colorScheme="coral"
         />
         <StatCard
           title="위험도 중간"
-          value={stats.mediumRisk}
+          value={stats?.mediumRiskCount ?? 0}
           icon={<Lock className="size-5" />}
           colorScheme="warning"
         />
         <StatCard
           title="위험도 낮음"
-          value={stats.lowRisk}
+          value={stats?.lowRiskCount ?? 0}
           icon={<Lock className="size-5" />}
           colorScheme="green"
         />
         <StatCard
           title="총 개인정보 수"
-          value={stats.totalPersonalInfo.toLocaleString()}
+          value={(stats?.totalPiiCount ?? 0).toLocaleString()}
           icon={<FileText className="size-5" />}
           colorScheme="mint"
         />
@@ -412,33 +408,54 @@ export default function FilePrivacyIssuesPage() {
         </h2>
         <div className="flex-1 min-h-0 overflow-y-auto pr-0">
           <div className="flex flex-col gap-3 pb-2">
-            {issues.map((issue) => (
-              <TableSection
-                key={issue.id}
-                icon={<Folder className="size-5" />}
-                title={issue.serverName}
-                meta={issue.serverType}
-                badge={`${issue.issueCount}개 이슈`}
-                badgeVariant="plain"
-              >
-                <Table
-                  columns={getFileColumns(issue)}
-                  data={issue.files}
-                  scrollable={false}
-                  className="border-0 rounded-t-none"
-                />
-              </TableSection>
-            ))}
+            {connectionIssues.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-[var(--color-text-light-gray)]">
+                  이슈가 없습니다.
+                </p>
+              </div>
+            ) : (
+              <>
+                {connectionIssues.map((issue) => (
+                  <TableSection
+                    key={issue.id}
+                    icon={<Folder className="size-5" />}
+                    title={issue.connectionName}
+                    meta={issue.serverType}
+                    badge={`${issue.issueCount}개 이슈`}
+                    badgeVariant="plain"
+                  >
+                    <Table
+                      columns={getFileColumns(issue)}
+                      data={issue.files}
+                      scrollable={false}
+                      className="border-0 rounded-t-none"
+                    />
+                  </TableSection>
+                ))}
+                {hasNext && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      onClick={handleLoadMore}
+                      disabled={loading}
+                      colorScheme="main"
+                      appearance="solid"
+                    >
+                      {loading ? "로딩 중..." : "더보기"}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {selectedIssue && (
+      {selectedIssueId != null && (
         <IssueDetailModal
-          open={selected != null}
-          onClose={handleCloseModal}
-          issue={selectedIssue}
-          file={selectedFile}
+          open={selectedIssueId != null}
+          onClose={() => setSelectedIssueId(null)}
+          issueId={selectedIssueId}
         />
       )}
     </div>
