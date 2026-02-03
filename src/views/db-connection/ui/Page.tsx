@@ -396,7 +396,10 @@ export default function DbConnectionPage() {
 
   const handleScan = async (id: string) => {
     const connectionId = Number(id);
-    if (scanningConnectionId != null) return;
+    if (scanningConnectionId != null) {
+      alert("다른 스캔이 진행 중입니다. 완료 후 다시 시도해 주세요.");
+      return;
+    }
     setScanningConnectionId(connectionId);
     try {
       const res = await scanDbConnection(connectionId);
@@ -559,7 +562,7 @@ export default function DbConnectionPage() {
                 {
                   label: isScanning ? "스캔 중…" : "스캔",
                   variant: "scan",
-                  onClick: () => handleScan(String(item.id)),
+                  onClick: isScanning ? undefined : () => handleScan(String(item.id)),
                 },
                 {
                   label: "수정",
