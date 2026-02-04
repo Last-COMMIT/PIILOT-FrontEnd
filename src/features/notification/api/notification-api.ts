@@ -26,6 +26,20 @@ function toErrorResponse<T>(error: unknown): ApiResponse<T> {
   };
 }
 
+/** 응답 정규화: 빈 바디(204) 등에서 최소 필드 보장 */
+function normalizeApiResponse<T>(
+  data: Partial<ApiResponse<T>>,
+  defaultResult: T | null = null,
+): ApiResponse<T> {
+  return {
+    success: data.success ?? true,
+    code: data.code ?? "COMMON200",
+    message: data.message ?? "요청이 성공했습니다.",
+    result: data.result !== undefined ? data.result : defaultResult,
+    timestamp: data.timestamp ?? new Date().toISOString(),
+  };
+}
+
 /** 알림 목록 조회 (페이지네이션) */
 export async function getNotificationList(params?: {
   page?: number;
@@ -49,7 +63,7 @@ export async function getNotificationList(params?: {
         result: null,
       };
     }
-    return data;
+    return normalizeApiResponse(data, null);
   } catch (e) {
     return toErrorResponse<NotificationListResponse>(e);
   }
@@ -72,7 +86,7 @@ export async function getRecentUnreadNotifications(): Promise<
         result: null,
       };
     }
-    return data;
+    return normalizeApiResponse(data, []);
   } catch (e) {
     return toErrorResponse<NotificationItem[]>(e);
   }
@@ -95,7 +109,7 @@ export async function getUnreadCount(): Promise<
         result: null,
       };
     }
-    return data;
+    return normalizeApiResponse(data, { unreadCount: 0 });
   } catch (e) {
     return toErrorResponse<NotificationStatsResponse>(e);
   }
@@ -120,7 +134,7 @@ export async function markNotificationAsRead(
         result: null,
       };
     }
-    return data;
+    return normalizeApiResponse(data, null);
   } catch (e) {
     return toErrorResponse<NotificationItem>(e);
   }
