@@ -164,12 +164,19 @@ export default function IssueDetailModal({
   const previewMessage = detail?.previewMessage;
   const mimeType = detail?.mimeType ?? "";
 
-  // 이미지 타입인지 확인
+  // 문서/미디어 타입 확인
+  const isPdf = mimeType === "application/pdf";
+  const isDocx =
+    mimeType ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   const isImage = mimeType.startsWith("image/");
-  // 비디오 타입인지 확인
   const isVideo = mimeType.startsWith("video/");
-  // 오디오 타입인지 확인
   const isAudio = mimeType.startsWith("audio/");
+
+  const dataUrl =
+    previewAvailable && fileContent
+      ? `data:${mimeType};base64,${fileContent}`
+      : "";
 
   return (
     <Modal
@@ -215,21 +222,33 @@ export default function IssueDetailModal({
                 <div className="rounded-lg border border-[var(--color-content-border)] overflow-hidden bg-[var(--color-sidebar-bg)]">
                   {previewAvailable && fileContent ? (
                     <div className="p-4 flex items-center justify-center min-h-[400px] max-h-[600px] overflow-auto">
-                      {isImage ? (
+                      {isPdf ? (
+                        <iframe
+                          src={dataUrl}
+                          title={detail.fileName}
+                          className="w-full min-h-[400px] h-[500px] rounded"
+                        />
+                      ) : isDocx ? (
                         <img
-                          src={`data:${mimeType};base64,${fileContent}`}
+                          src={dataUrl}
+                          alt={detail.fileName}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : isImage ? (
+                        <img
+                          src={dataUrl}
                           alt={detail.fileName}
                           className="max-w-full max-h-full object-contain"
                         />
                       ) : isVideo ? (
                         <video
-                          src={`data:${mimeType};base64,${fileContent}`}
+                          src={dataUrl}
                           controls
                           className="max-w-full max-h-full"
                         />
                       ) : isAudio ? (
                         <audio
-                          src={`data:${mimeType};base64,${fileContent}`}
+                          src={dataUrl}
                           controls
                           className="w-full"
                         />
@@ -244,6 +263,13 @@ export default function IssueDetailModal({
                           <p className="text-xs text-[var(--color-text-light-gray)]/60">
                             {detail.fileName}
                           </p>
+                          <a
+                            href={dataUrl}
+                            download={detail.fileName}
+                            className="text-xs text-[var(--color-main-text)] underline"
+                          >
+                            다운로드
+                          </a>
                         </div>
                       )}
                     </div>
