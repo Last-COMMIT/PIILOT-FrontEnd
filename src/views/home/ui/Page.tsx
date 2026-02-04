@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Database, FileText, TriangleAlert, Columns } from "lucide-react";
-import { StatCard, IssueCard, LineChart, DoughnutChart } from "@/shared/ui";
+import { StatCard, IssueCard, LineChart, DoughnutChart, LoadingIndicator } from "@/shared/ui";
 import type {
   LineChartData,
   DoughnutChartData,
@@ -255,10 +255,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div
-          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-          aria-label="로딩 중"
-        />
+        <LoadingIndicator size="lg" aria-label="로딩 중" />
       </div>
     );
   }

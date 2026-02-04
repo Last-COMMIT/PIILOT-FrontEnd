@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Button, Table } from "@/shared/ui";
+import { Button, Table, LoadingIndicator } from "@/shared/ui";
 import { useIsAdmin } from "../lib/useIsAdmin";
 import { getNoticeList } from "@/features/notice";
 import type { NoticeListItem } from "@/features/notice";
@@ -84,14 +84,8 @@ export default function NoticeListPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
-        <div
-          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-          aria-hidden
-        />
-        <p className="text-sm text-[var(--color-sidebar-hover-text)]">
-          로딩 중…
-        </p>
+      <div className="h-full flex items-center justify-center p-6 text-white">
+        <LoadingIndicator message="로딩 중…" size="lg" />
       </div>
     );
   }

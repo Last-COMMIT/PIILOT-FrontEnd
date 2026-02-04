@@ -7,12 +7,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Plane,
   Image,
   ImageOff,
-  Loader2,
 } from "lucide-react";
-import { Button, Dropdown, Input, PasswordInput } from "@/shared/ui";
+import { Button, Dropdown, Input, PasswordInput, LoadingIndicator } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -424,12 +422,7 @@ export default function FilePrivacyMaskingPage() {
   ) => {
     if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4">
-          <Loader2 className="size-8 animate-spin text-[var(--color-main-bg)]" />
-          <p className="text-sm text-[var(--color-text-light-gray)]">
-            로딩 중...
-          </p>
-        </div>
+        <LoadingIndicator message="로딩 중..." size="md" />
       );
     }
 
@@ -746,7 +739,7 @@ export default function FilePrivacyMaskingPage() {
                 {/* 테이블 바디 */}
                 {isLoadingFiles ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="size-6 animate-spin text-[var(--color-main-bg)]" />
+                    <LoadingIndicator size="md" />
                   </div>
                 ) : filteredFiles.length === 0 ? (
                   <div className="flex items-center justify-center py-8 text-[var(--color-text-light-gray)]">
@@ -913,41 +906,15 @@ export default function FilePrivacyMaskingPage() {
             <div className="p-[10px] flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
               {isConverting ? (
                 <>
-                  {showLongLoadingIndicator ? (
-                    <div className="relative w-full h-32 flex items-center justify-center overflow-hidden">
-                      <style>{`
-                        @keyframes fly-straight {
-                          0% {
-                            transform: translateX(-100%) rotate(30deg);
-                            opacity: 0;
-                          }
-                          50% {
-                            transform: translateX(0%) rotate(30deg);
-                            opacity: 1;
-                          }
-                          100% {
-                            transform: translateX(120%) rotate(30deg);
-                            opacity: 0;
-                          }
-                        }
-                        .flying-plane {
-                          animation: fly-straight 2s linear infinite;
-                        }
-                      `}</style>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Plane className="size-16 text-[var(--color-main-bg)] flying-plane" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-32 flex items-center justify-center">
-                      <div className="size-8 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin" />
-                    </div>
-                  )}
-                  <p className="text-sm text-[var(--color-text-light-gray)]">
-                    {showLongLoadingIndicator
-                      ? "AI 마스킹 처리 중..."
-                      : "처리 중..."}
-                  </p>
+                  <LoadingIndicator
+                    message={
+                      showLongLoadingIndicator
+                        ? "AI 마스킹 처리 중..."
+                        : "처리 중..."
+                    }
+                    size="lg"
+                    className="min-h-[80px]"
+                  />
                   <p className="text-xs text-[var(--color-text-light-gray)]/60">
                     {maskedFileIds.size} / {selectedFileIds.size} 파일 변환 완료
                   </p>

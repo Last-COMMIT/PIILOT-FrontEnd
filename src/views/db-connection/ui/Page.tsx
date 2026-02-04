@@ -11,6 +11,7 @@ import {
   Modal,
   Input,
   Dropdown,
+  LoadingIndicator,
 } from "@/shared/ui";
 import type {
   ConnectionDbType,
@@ -431,14 +432,8 @@ export default function DbConnectionPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
-        <div
-          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-          aria-hidden
-        />
-        <p className="text-sm text-[var(--color-sidebar-hover-text)]">
-          로딩 중…
-        </p>
+      <div className="h-full flex items-center justify-center p-6 text-white">
+        <LoadingIndicator message="로딩 중…" size="lg" />
       </div>
     );
   }
@@ -607,13 +602,10 @@ export default function DbConnectionPage() {
         footer={
           <div className="flex justify-end gap-2">
             {modalLoading ? (
-              <span className="flex items-center gap-2 text-sm text-[var(--color-sidebar-hover-text)]">
-                <span
-                  className="size-4 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0"
-                  aria-hidden
-                />
-                로딩 중…
-              </span>
+              <div className="flex items-center gap-2 text-sm text-[var(--color-sidebar-hover-text)]">
+                <LoadingIndicator size="sm" className="gap-0 min-h-0" message="" />
+                <span>로딩 중…</span>
+              </div>
             ) : isViewMode ? (
               <>
                 <Button

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search, RotateCcw } from "lucide-react";
-import { Button, Input } from "@/shared/ui";
+import { Button, Input, LoadingIndicator } from "@/shared/ui";
 import DocumentModal from "./DocumentModal";
 import { postLawSearch } from "@/features/law-search";
 import type { LawSearchResult, LawSearchReference } from "@/features/law-search";
@@ -105,7 +105,11 @@ export default function LawSearchPage() {
       {/* 검색 결과 영역 */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] h-full min-h-0 flex flex-col overflow-hidden">
-          {error && !searchResult ? (
+          {isSearching ? (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <LoadingIndicator message="검색 중..." size="lg" />
+            </div>
+          ) : error && !searchResult ? (
             <div className="flex-1 flex items-center justify-center p-6">
               <p className="text-[var(--color-coral-text)] text-sm">{error}</p>
             </div>

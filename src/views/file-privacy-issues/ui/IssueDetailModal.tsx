@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
-import { Modal } from "@/shared/ui";
+import { Modal, LoadingIndicator } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import { getFilePiiIssueDetail } from "@/features/file-pii";
 import type { FilePiiIssueDetail } from "@/features/file-pii";
@@ -189,10 +189,7 @@ export default function IssueDetailModal({
       <div className="flex flex-col gap-5 px-4 py-2">
         {loading ? (
           <div className="flex items-center justify-center py-12 text-white">
-            <div
-              className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-              aria-label="로딩 중"
-            />
+            <LoadingIndicator size="lg" aria-label="로딩 중" />
           </div>
         ) : error ? (
           <p className="py-6 text-center text-[var(--color-coral-text)]">

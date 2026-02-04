@@ -28,3 +28,5 @@ export type {
 } from "./table-section";
 export { Toggle } from "./toggle";
 export type { ToggleProps } from "./toggle";
+export { LoadingIndicator } from "./loading-indicator";
+export type { LoadingIndicatorProps } from "./loading-indicator";

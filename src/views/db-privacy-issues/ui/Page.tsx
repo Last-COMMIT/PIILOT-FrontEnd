@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Lock, FileText, Database } from "lucide-react";
-import { StatCard, Table, Button, TableSection } from "@/shared/ui";
+import { StatCard, Table, Button, TableSection, LoadingIndicator } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import IssueDetailModal from "./IssueDetailModal";
@@ -402,10 +402,7 @@ export default function DbPrivacyIssuesPage() {
         </h2>
         {loading && tableIssues.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-white">
-            <div
-              className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-              aria-label="로딩 중"
-            />
+            <LoadingIndicator size="lg" aria-label="로딩 중" />
           </div>
         ) : tableIssues.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-white/70">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/shared/ui";
+import { Button, LoadingIndicator } from "@/shared/ui";
 import { useIsAdmin } from "../lib/useIsAdmin";
 import {
   getNoticeDetail,
@@ -67,14 +67,8 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
-        <div
-          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-          aria-hidden
-        />
-        <p className="text-sm text-[var(--color-sidebar-hover-text)]">
-          로딩 중…
-        </p>
+      <div className="h-full flex items-center justify-center p-6 text-white">
+        <LoadingIndicator message="로딩 중…" size="lg" />
       </div>
     );
   }
