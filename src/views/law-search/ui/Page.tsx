@@ -155,7 +155,7 @@ export default function LawSearchPage() {
                           className="group text-left p-4 rounded-lg border-2 border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] hover:border-[var(--color-main-bg)] hover:bg-[var(--color-main-bg)]/10 transition-all cursor-pointer"
                         >
                           <p className="text-sm font-medium text-white mb-1 group-hover:text-[var(--color-main-text)] transition-colors">
-                            {ref.documentTitle}
+                            {ref.lawName}
                           </p>
                           {ref.article && (
                             <p className="text-xs text-[var(--color-mint-text)] mb-1">
