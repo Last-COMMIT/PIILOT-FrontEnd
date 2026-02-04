@@ -281,7 +281,7 @@ export default function HomePage() {
   const stats = summary?.stats;
 
   return (
-    <div className="h-full flex flex-col p-6 gap-5 overflow-hidden">
+    <div className="min-h-full flex flex-col p-6 gap-5">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 shrink-0">
         <StatCard
           title="총 서버 연결"
@@ -342,15 +342,15 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 flex-1 min-h-0 lg:[grid-template-columns:0.85fr_1.075fr_1.075fr]">
-        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col min-h-0">
+      <div className="grid grid-cols-1 gap-5 min-h-[320px] overflow-x-hidden overflow-y-visible lg:[grid-template-columns:0.85fr_1.075fr_1.075fr]">
+        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col min-h-0 min-w-0 overflow-hidden">
           <h3 className="text-sm font-semibold text-white mb-3 shrink-0">
             개인정보 유형별 분포
           </h3>
-          <div className="flex-1 gap-4 min-h-0 flex flex-col items-center justify-center">
+          <div className="flex-1 gap-4 min-h-0 min-w-0 flex flex-col items-center justify-center overflow-hidden">
             {personalInfoData.labels.length > 0 ? (
               <>
-                <div className="w-full max-w-[240px] mb-4">
+                <div className="w-full max-w-[240px] mb-4 min-w-0 overflow-hidden">
                   <DoughnutChart
                     data={personalInfoData}
                     height={200}

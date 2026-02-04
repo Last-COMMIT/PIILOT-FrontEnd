@@ -34,11 +34,11 @@ export default function RootLayout({
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
           <div
-            className="flex-1 flex flex-col overflow-hidden"
+            className="flex-1 flex flex-col min-w-0 overflow-hidden"
             style={{ marginLeft: "var(--sidebar-width)" }}
           >
             <Header />
-            <main className="flex-1 overflow-hidden bg-[var(--color-bg-main)]">
+            <main className="flex-1 min-w-0 overflow-auto bg-[var(--color-bg-main)]">
               {children}
             </main>
           </div>
