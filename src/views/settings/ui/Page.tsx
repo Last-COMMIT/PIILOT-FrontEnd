@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Mail } from "lucide-react";
 import { Button, Table, TableSection, Toggle } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
+import { useIsAdmin } from "@/views/notice/lib/useIsAdmin";
+
+const STORAGE_KEY_NOTIFICATION = "settings_notification_level";
+const STORAGE_KEY_EMAIL = "settings_email_level";
 
 type SeverityLevel = "high" | "medium" | "low";
 
@@ -13,6 +17,9 @@ interface NotificationSettings {
   medium: boolean;
   low: boolean;
 }
+
+/** 업로드 시 선택 가능한 파일 유형 (PDF 전제) */
+type FileKind = "law" | "internal";
 
 interface UploadedFile extends Record<string, unknown> {
   id: string;
@@ -166,21 +173,65 @@ function LevelRow({
   );
 }
 
+function loadNotificationSettings(
+  key: string,
+  fallback: NotificationSettings
+): NotificationSettings {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as NotificationSettings;
+    return {
+      high: !!parsed.high,
+      medium: !!parsed.medium,
+      low: !!parsed.low,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveNotificationSettings(
+  key: string,
+  value: NotificationSettings
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
+
+const DEFAULT_NOTIFICATION: NotificationSettings = {
+  high: true,
+  medium: true,
+  low: true,
+};
+
 export default function SettingsPage() {
+  const isAdmin = useIsAdmin();
   const [notificationLevel, setNotificationLevel] =
-    useState<NotificationSettings>({
-      high: true,
-      medium: true,
-      low: true,
-    });
-  const [emailLevel, setEmailLevel] = useState<NotificationSettings>({
-    high: true,
-    medium: true,
-    low: true,
-  });
+    useState<NotificationSettings>(() =>
+      loadNotificationSettings(STORAGE_KEY_NOTIFICATION, DEFAULT_NOTIFICATION)
+    );
+  const [emailLevel, setEmailLevel] = useState<NotificationSettings>(() =>
+    loadNotificationSettings(STORAGE_KEY_EMAIL, DEFAULT_NOTIFICATION)
+  );
   const [uploadedFiles, setUploadedFiles] =
     useState<UploadedFile[]>(MOCK_UPLOADED_FILES);
+  const [fileKindForUpload, setFileKindForUpload] = useState<FileKind>("law");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 알림/이메일 토글: UI만 localStorage에 저장 (백엔드 미연동)
+  useEffect(() => {
+    saveNotificationSettings(STORAGE_KEY_NOTIFICATION, notificationLevel);
+  }, [notificationLevel]);
+
+  useEffect(() => {
+    saveNotificationSettings(STORAGE_KEY_EMAIL, emailLevel);
+  }, [emailLevel]);
 
   const handleNotificationChange = (level: SeverityLevel, checked: boolean) => {
     setNotificationLevel((prev) => ({ ...prev, [level]: checked }));
@@ -190,15 +241,17 @@ export default function SettingsPage() {
     setEmailLevel((prev) => ({ ...prev, [level]: checked }));
   };
 
+  const fileTypeLabel = fileKindForUpload === "law" ? "법령" : "내규";
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
     const fileList = Array.from(files);
     const newEntries: UploadedFile[] = fileList.map((file, i) => ({
       id: `file-${Date.now()}-${i}`,
-      no: 0, // 표시용 번호는 dataWithNo에서 계산
+      no: 0,
       fileName: file.name,
-      fileType: getFileTypeLabel(file.name),
+      fileType: fileTypeLabel,
       uploadedAt: formatUploadDate(new Date()),
     }));
     setUploadedFiles((prev) => [...newEntries, ...prev]);
@@ -235,7 +288,7 @@ export default function SettingsPage() {
       { id: "fileType", label: "파일 유형", width: 1.2, align: "left" },
       { id: "uploadedAt", label: "업로드 일시", width: 1.4, align: "left" },
     ],
-    [],
+    []
   );
 
   return (
@@ -274,42 +327,102 @@ export default function SettingsPage() {
                   checked={emailLevel[level]}
                   onToggle={(checked) => handleEmailChange(level, checked)}
                 />
-              ),
+              )
             )}
           </div>
         </TableSection>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between gap-4 shrink-0 pb-4">
-          <h3 className="text-base font-bold text-white">관리자 파일 업로드</h3>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="sr-only"
-            onChange={handleFileUpload}
-            aria-label="파일 선택"
-          />
-          <Button
-            colorScheme="main"
-            appearance="outline"
-            size="sm"
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            파일 업로드
-          </Button>
+      {isAdmin && (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex flex-col gap-4 shrink-0 pb-4">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="text-base font-bold text-white">
+                관리자 파일 업로드
+              </h3>
+            </div>
+            <div className="flex items-center gap-6 flex-wrap">
+              <span className="text-sm text-[var(--color-text-light-gray)]">
+                파일 유형
+              </span>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer rounded-full has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-main-bg)]/50 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--color-sidebar-bg)]">
+                  <input
+                    type="radio"
+                    name="fileKind"
+                    checked={fileKindForUpload === "law"}
+                    onChange={() => setFileKindForUpload("law")}
+                    className="sr-only"
+                  />
+                  <span
+                    className={cn(
+                      "relative flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
+                      "focus-visible:outline-none",
+                      fileKindForUpload === "law"
+                        ? "border-[var(--color-main-bg)] bg-[var(--color-main-bg)] shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
+                        : "border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]"
+                    )}
+                  >
+                    {fileKindForUpload === "law" && (
+                      <span className="size-2 rounded-full bg-white" />
+                    )}
+                  </span>
+                  <span className="text-sm text-white">법령</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer rounded-full has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-main-bg)]/50 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--color-sidebar-bg)]">
+                  <input
+                    type="radio"
+                    name="fileKind"
+                    checked={fileKindForUpload === "internal"}
+                    onChange={() => setFileKindForUpload("internal")}
+                    className="sr-only"
+                  />
+                  <span
+                    className={cn(
+                      "relative flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
+                      "focus-visible:outline-none",
+                      fileKindForUpload === "internal"
+                        ? "border-[var(--color-main-bg)] bg-[var(--color-main-bg)] shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
+                        : "border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]"
+                    )}
+                  >
+                    {fileKindForUpload === "internal" && (
+                      <span className="size-2 rounded-full bg-white" />
+                    )}
+                  </span>
+                  <span className="text-sm text-white">내규</span>
+                </label>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                className="sr-only"
+                onChange={handleFileUpload}
+                aria-label="PDF 파일 선택"
+              />
+              <Button
+                colorScheme="main"
+                appearance="outline"
+                size="sm"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                파일 업로드 (PDF)
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <Table<UploadedFileRow>
+              columns={fileColumns}
+              data={fileTableData}
+              maxBodyHeight="100%"
+              rowSelectionEnabled={false}
+            />
+          </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <Table<UploadedFileRow>
-            columns={fileColumns}
-            data={fileTableData}
-            maxBodyHeight="100%"
-            rowSelectionEnabled={false}
-          />
-        </div>
-      </div>
+      )}
 
       <div className="flex justify-end shrink-0">
         <Button colorScheme="main" appearance="solid" onClick={handleSave}>
@@ -318,15 +431,6 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-}
-
-function getFileTypeLabel(fileName: string): string {
-  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
-  if (["pdf"].includes(ext)) return "법령";
-  if (["doc", "docx", "hwp"].includes(ext)) return "내규";
-  if (["jpg", "jpeg", "png", "gif"].includes(ext)) return "DB 사진";
-  if (["csv", "xlsx"].includes(ext)) return "데이터";
-  return "기타";
 }
 
 function formatUploadDate(d: Date): string {
