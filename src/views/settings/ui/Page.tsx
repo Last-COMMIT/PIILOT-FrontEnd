@@ -19,7 +19,7 @@ interface NotificationSettings {
 }
 
 /** 업로드 시 선택 가능한 파일 유형 (PDF 전제) */
-type FileKind = "law" | "internal";
+type FileKind = "db_manual" | "law_internal";
 
 interface UploadedFile extends Record<string, unknown> {
   id: string;
@@ -221,7 +221,8 @@ export default function SettingsPage() {
   );
   const [uploadedFiles, setUploadedFiles] =
     useState<UploadedFile[]>(MOCK_UPLOADED_FILES);
-  const [fileKindForUpload, setFileKindForUpload] = useState<FileKind>("law");
+  const [fileKindForUpload, setFileKindForUpload] =
+    useState<FileKind>("law_internal");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 알림/이메일 토글: UI만 localStorage에 저장 (백엔드 미연동)
@@ -241,7 +242,8 @@ export default function SettingsPage() {
     setEmailLevel((prev) => ({ ...prev, [level]: checked }));
   };
 
-  const fileTypeLabel = fileKindForUpload === "law" ? "법령" : "내규";
+  const fileTypeLabel =
+    fileKindForUpload === "db_manual" ? "DB 사전" : "법령/내규";
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -350,47 +352,47 @@ export default function SettingsPage() {
                   <input
                     type="radio"
                     name="fileKind"
-                    checked={fileKindForUpload === "law"}
-                    onChange={() => setFileKindForUpload("law")}
+                    checked={fileKindForUpload === "db_manual"}
+                    onChange={() => setFileKindForUpload("db_manual")}
                     className="sr-only"
                   />
                   <span
                     className={cn(
                       "relative flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
                       "focus-visible:outline-none",
-                      fileKindForUpload === "law"
+                      fileKindForUpload === "db_manual"
                         ? "border-[var(--color-main-bg)] bg-[var(--color-main-bg)] shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
                         : "border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]"
                     )}
                   >
-                    {fileKindForUpload === "law" && (
+                    {fileKindForUpload === "db_manual" && (
                       <span className="size-2 rounded-full bg-white" />
                     )}
                   </span>
-                  <span className="text-sm text-white">법령</span>
+                  <span className="text-sm text-white">DB 사전</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer rounded-full has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-main-bg)]/50 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--color-sidebar-bg)]">
                   <input
                     type="radio"
                     name="fileKind"
-                    checked={fileKindForUpload === "internal"}
-                    onChange={() => setFileKindForUpload("internal")}
+                    checked={fileKindForUpload === "law_internal"}
+                    onChange={() => setFileKindForUpload("law_internal")}
                     className="sr-only"
                   />
                   <span
                     className={cn(
                       "relative flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
                       "focus-visible:outline-none",
-                      fileKindForUpload === "internal"
+                      fileKindForUpload === "law_internal"
                         ? "border-[var(--color-main-bg)] bg-[var(--color-main-bg)] shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
                         : "border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]"
                     )}
                   >
-                    {fileKindForUpload === "internal" && (
+                    {fileKindForUpload === "law_internal" && (
                       <span className="size-2 rounded-full bg-white" />
                     )}
                   </span>
-                  <span className="text-sm text-white">내규</span>
+                  <span className="text-sm text-white">법령/내규</span>
                 </label>
               </div>
               <input
