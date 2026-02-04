@@ -44,8 +44,6 @@ const RISK_LEVEL_OPTIONS = [
   { value: "LOW", label: "낮음" },
 ];
 
-const MAX_SELECTION = 5;
-
 const RISK_LEVEL_MAP: Record<RiskLevel, string> = {
   HIGH: "높음",
   MEDIUM: "중간",
@@ -233,22 +231,21 @@ export default function FilePrivacyMaskingPage() {
       e.stopPropagation();
     }
     setSelectedFileIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(fileId)) {
-        newSet.delete(fileId);
+      if (prev.has(fileId)) {
         if (selectedFileId === fileId) {
           setSelectedFileId(null);
         }
-      } else {
-        if (newSet.size < MAX_SELECTION) {
-          newSet.add(fileId);
-        }
+        return new Set<number>();
       }
-      return newSet;
+      return new Set([fileId]);
     });
+    if (!selectedFileIds.has(fileId)) {
+      setSelectedFileId(fileId);
+    }
   };
 
-  const handleFileClick = (fileId: number) => {
+  const handleFileRowClick = (fileId: number) => {
+    setSelectedFileIds(new Set([fileId]));
     setSelectedFileId(fileId);
   };
 
@@ -560,13 +557,11 @@ export default function FilePrivacyMaskingPage() {
       align: "center",
       render: (_, row) => {
         const isSelected = selectedFileIds.has(row.fileId);
-        const isDisabled = !isSelected && selectedFileIds.size >= MAX_SELECTION;
         return (
           <div className="flex items-center justify-center">
             <button
               type="button"
               onClick={(e) => handleFileToggle(row.fileId, e)}
-              disabled={isDisabled}
               className={cn(
                 "relative size-4 flex items-center justify-center transition-all duration-200 rounded",
                 "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--color-main-bg)]/50 focus-visible:ring-offset-0",
@@ -574,7 +569,6 @@ export default function FilePrivacyMaskingPage() {
                 isSelected
                   ? "bg-[var(--color-main-bg)] border-[var(--color-main-bg)] shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
                   : "bg-[var(--color-sidebar-bg)] border-[var(--color-content-border)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]",
-                isDisabled && "opacity-50 cursor-not-allowed",
               )}
             >
               {isSelected && (
@@ -642,11 +636,11 @@ export default function FilePrivacyMaskingPage() {
   return (
     <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
       {/* 파일 선택 섹션 */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col">
         <h2 className="shrink-0 text-base font-semibold text-white px-1 pb-2">
-          파일 선택 ({selectedFileIds.size}/{MAX_SELECTION})
+          파일 선택
         </h2>
-        <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-col gap-4 flex-1 min-h-0">
           {/* 필터 및 검색 */}
           <div className="flex items-center gap-3 flex-wrap shrink-0">
             <div className="flex-[0.8] min-w-[180px]">
@@ -766,7 +760,7 @@ export default function FilePrivacyMaskingPage() {
                           gridTemplateColumns: "40px 1fr 1fr 2fr 0.7fr 0.7fr",
                           minHeight: "36px",
                         }}
-                        onClick={() => handleFileClick(file.fileId)}
+                        onClick={() => handleFileRowClick(file.fileId)}
                       >
                         {fileColumns.map((col) => {
                           const content =
@@ -825,9 +819,6 @@ export default function FilePrivacyMaskingPage() {
                     isLoadingPreview,
                     false,
                   )}
-                  <p className="text-xs text-[var(--color-text-light-gray)]/60">
-                    {currentOriginalFile.fileName}
-                  </p>
                   {selectedFilesArray.length > 1 && (
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
                       <button
@@ -918,9 +909,6 @@ export default function FilePrivacyMaskingPage() {
               ) : currentMaskedFileData ? (
                 <>
                   {renderPreview(currentMaskedFileData.preview, false, true)}
-                  <p className="text-xs text-[var(--color-text-light-gray)]/60">
-                    {currentMaskedFileData.file.fileName}
-                  </p>
                   {maskedFilesArray.length > 1 && (
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
                       <button
