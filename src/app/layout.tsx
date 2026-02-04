@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   title: "PIILOT",
   description:
     "개인정보 유출을 사전에 방지하고 탐지하는 AI 기반 파일럿 관제 플랫폼입니다.",
+  icons: {
+    icon: "/images/favicon.png",
+  },
 };
 
 export default function RootLayout({
