@@ -82,9 +82,16 @@ export function Header({
       if (response.success && response.result) {
         setNotifications(response.result);
         setHasUnread(response.result.some((n) => !n.isRead));
+      } else {
+        // API 실패 시 상태 초기화
+        setNotifications([]);
+        setHasUnread(false);
       }
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      // 에러 발생 시 상태 초기화
+      setNotifications([]);
+      setHasUnread(false);
     } finally {
       setLoading(false);
     }
