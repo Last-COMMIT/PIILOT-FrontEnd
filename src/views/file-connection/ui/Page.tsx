@@ -10,6 +10,7 @@ import {
   Modal,
   Input,
   Dropdown,
+  LoadingIndicator,
 } from "@/shared/ui";
 import type { ConnectionDetailItem, ConnectionActionItem } from "@/shared/ui";
 import {
@@ -465,14 +466,8 @@ export default function FileConnectionPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-white">
-        <div
-          className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-          aria-hidden
-        />
-        <p className="text-sm text-[var(--color-sidebar-hover-text)]">
-          로딩 중…
-        </p>
+      <div className="h-full flex items-center justify-center p-6 text-white">
+        <LoadingIndicator message="로딩 중…" size="lg" />
       </div>
     );
   }
@@ -685,12 +680,8 @@ export default function FileConnectionPage() {
         }
       >
         {modalLoading ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-8 text-[var(--color-sidebar-hover-text)]">
-            <div
-              className="size-8 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-              aria-hidden
-            />
-            <p className="text-sm">로딩 중…</p>
+          <div className="flex items-center justify-center py-8 text-[var(--color-sidebar-hover-text)]">
+            <LoadingIndicator message="로딩 중…" size="md" />
           </div>
         ) : (
           <div className="flex flex-col gap-4">

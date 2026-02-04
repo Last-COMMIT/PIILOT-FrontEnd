@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Lock, FileText, Folder } from "lucide-react";
-import { StatCard, Table, Button, TableSection } from "@/shared/ui";
+import { StatCard, Table, Button, TableSection, LoadingIndicator } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import IssueDetailModal from "./IssueDetailModal";
@@ -358,7 +358,7 @@ export default function FilePrivacyIssuesPage() {
     return (
       <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
         <div className="flex items-center justify-center h-full">
-          <p className="text-[var(--color-text-light-gray)]">로딩 중...</p>
+          <LoadingIndicator message="로딩 중..." size="lg" />
         </div>
       </div>
     );

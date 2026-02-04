@@ -5,6 +5,7 @@ import { Table as TableIcon, AlertTriangle, Lock, Database } from "lucide-react"
 import {
   StatCard,
   Table,
+  LoadingIndicator,
 } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
@@ -358,10 +359,7 @@ export default function DbPrivacyListPage() {
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {loading && rows.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-white">
-              <div
-                className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-                aria-label="로딩 중"
-              />
+              <LoadingIndicator size="lg" aria-label="로딩 중" />
             </div>
           ) : rows.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-white/70 text-center px-4">

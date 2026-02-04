@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Database, AlertTriangle, Lock, FileText } from "lucide-react";
-import { StatCard, Table, Button } from "@/shared/ui";
+import { StatCard, Table, Button, LoadingIndicator } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import FilterSection from "./FilterSection";
@@ -333,10 +333,7 @@ export default function FilePrivacyListPage() {
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {loading && rows.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-white">
-              <div
-                className="size-10 rounded-full border-2 border-[var(--color-main-bg)] border-t-transparent animate-spin"
-                aria-label="로딩 중"
-              />
+              <LoadingIndicator size="lg" aria-label="로딩 중" />
             </div>
           ) : error && rows.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-white">

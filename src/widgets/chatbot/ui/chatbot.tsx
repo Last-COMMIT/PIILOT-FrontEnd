@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { Bot, X, Send } from "lucide-react";
 import { sendChatMessage } from "@/features/chatbot";
+import { LoadingIndicator } from "@/shared/ui";
 
 const INITIAL_MESSAGE = `안녕하세요! PIILOT AI 어시스턴트입니다.
-개인정보 보호와 관련된 질문이 있으시면
-언제든 물어보세요.`;
+개인정보 보호와 관련된 질문이 있으시면 언제든 물어보세요.`;
 
 export function Chatbot() {
   const pathname = usePathname();
@@ -105,7 +105,7 @@ export function Chatbot() {
           className={cn(
             "fixed bottom-5 right-6 z-40 flex flex-col overflow-hidden rounded-xl shadow-2xl",
             // 폭/높이를 화면에 맞게 넓게 잡아 줄바꿈 감소
-            "h-[min(720px,calc(100vh-3rem))] w-[min(640px,calc(100vw-3rem))]",
+            "h-[min(720px,calc(100vh-3rem))] w-[min(490px,calc(100vw-3rem))]",
             "border border-[var(--color-content-border)] bg-[var(--color-bg-panel)]"
           )}
         >
@@ -174,6 +174,11 @@ export function Chatbot() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="mb-5 flex justify-start">
+                <LoadingIndicator message="응답 생성 중..." size="md" className="gap-2" />
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
