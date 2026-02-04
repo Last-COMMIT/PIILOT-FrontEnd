@@ -7,10 +7,7 @@ import { StatCard, Table, Button, TableSection } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import IssueDetailModal from "./IssueDetailModal";
-import {
-  getDbPiiIssues,
-  patchDbPiiIssueStatus,
-} from "@/features/db-pii";
+import { getDbPiiIssues, patchDbPiiIssueStatus } from "@/features/db-pii";
 import type {
   DbPiiIssueTableGroup,
   DbPiiIssueItem,
@@ -43,7 +40,8 @@ interface IssueColumn extends Record<string, unknown> {
   issueId: number;
   columnName: string;
   personalInfoType: string;
-  recordCount: number;
+  unencRecordsCount: number;
+  totalRecordsCount: number;
   riskLevel: RiskLevel;
   workStatus: WorkStatus;
 }
@@ -69,7 +67,8 @@ function apiGroupToTableIssue(g: DbPiiIssueTableGroup): TableIssue {
       issueId: item.issueId,
       columnName: item.columnName,
       personalInfoType: item.piiTypeName,
-      recordCount: item.totalRecordsCount,
+      unencRecordsCount: item.unencRecordsCount,
+      totalRecordsCount: item.totalRecordsCount,
       riskLevel: riskLevelToLabel[item.riskLevel] ?? "낮음",
       workStatus: userStatusToLabel[item.userStatus] ?? "진행시작",
     })),
@@ -136,15 +135,17 @@ export default function DbPrivacyIssuesPage() {
         // 명세: result.content = { content: [], hasNext, ... }. 일부 백엔드는 result.content = [] 로 보낼 수 있음
         const contentArray: DbPiiIssueTableGroup[] = Array.isArray(rawContent)
           ? rawContent
-          : Array.isArray((rawContent as { content?: DbPiiIssueTableGroup[] })?.content)
-            ? (rawContent as { content: DbPiiIssueTableGroup[] }).content
-            : [];
+          : Array.isArray(
+              (rawContent as { content?: DbPiiIssueTableGroup[] })?.content
+            )
+          ? (rawContent as { content: DbPiiIssueTableGroup[] }).content
+          : [];
         const list = contentArray
           .filter(
             (g): g is DbPiiIssueTableGroup =>
               g != null &&
               typeof g.tableId === "number" &&
-              Array.isArray(g.issues),
+              Array.isArray(g.issues)
           )
           .map(apiGroupToTableIssue);
         if (append) {
@@ -165,7 +166,7 @@ export default function DbPrivacyIssuesPage() {
       setHasNext(false);
       return false;
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -186,9 +187,7 @@ export default function DbPrivacyIssuesPage() {
     setSelectedIssueId(issueId);
   };
 
-  const getNextUserStatus = (
-    current: WorkStatus,
-  ): "RUNNING" | "DONE" => {
+  const getNextUserStatus = (current: WorkStatus): "RUNNING" | "DONE" => {
     if (current === "진행시작") return "RUNNING";
     return "DONE";
   };
@@ -212,12 +211,11 @@ export default function DbPrivacyIssuesPage() {
             c.issueId === issueId
               ? {
                   ...c,
-                  workStatus:
-                    nextStatus === "RUNNING" ? "진행중" : "해결완료",
+                  workStatus: nextStatus === "RUNNING" ? "진행중" : "해결완료",
                 }
-              : c,
+              : c
           ),
-        })),
+        }))
       );
     } else {
       alert(res.message ?? "상태 변경에 실패했습니다.");
@@ -276,13 +274,14 @@ export default function DbPrivacyIssuesPage() {
       ),
     },
     {
-      id: "recordCount",
-      label: "레코드 수",
+      id: "unencRecordsCount",
+      label: "보안 필요 레코드 / 총 레코드",
       width: "1fr",
       align: "left",
-      render: (value) => (
+      render: (value, row) => (
         <span className="tabular-nums">
-          {(value as number).toLocaleString()}
+          {(value as number).toLocaleString()} /{" "}
+          {row.totalRecordsCount.toLocaleString()}
         </span>
       ),
     },
@@ -302,7 +301,7 @@ export default function DbPrivacyIssuesPage() {
           <span
             className={cn(
               "rounded-md px-2 py-1 text-xs font-medium",
-              riskColors[riskLevel],
+              riskColors[riskLevel]
             )}
           >
             {riskLevel}

@@ -78,6 +78,7 @@ export interface DbPiiIssueItem {
   columnName: string;
   piiTypeName: string;
   piiTypeCode: string;
+  unencRecordsCount: number;
   totalRecordsCount: number;
   riskLevel: "HIGH" | "MEDIUM" | "LOW";
   userStatus: "ISSUE" | "RUNNING" | "DONE";
