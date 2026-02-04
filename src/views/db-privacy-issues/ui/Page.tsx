@@ -274,13 +274,13 @@ export default function DbPrivacyIssuesPage() {
       ),
     },
     {
-      id: "recordCount",
+      id: "unencRecordsCount",
       label: "보안 필요 레코드 / 총 레코드",
       width: "1fr",
       align: "left",
-      render: (_, row) => (
+      render: (value, row) => (
         <span className="tabular-nums">
-          {row.unencRecordsCount.toLocaleString()} /{" "}
+          {(value as number).toLocaleString()} /{" "}
           {row.totalRecordsCount.toLocaleString()}
         </span>
       ),
