@@ -86,6 +86,14 @@ export default function FilePrivacyMaskingPage() {
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const conversionTokenRef = useRef(0);
+  const selectedFileIdsRef = useRef<Set<number>>(new Set());
+
+  // 선택 파일이 바뀌면 마스킹 결과 초기화 (다른 파일 선택 시 결과 미리보기 제거)
+  useEffect(() => {
+    selectedFileIdsRef.current = new Set(selectedFileIds);
+    setMaskedFileIds(new Set());
+    setMaskedPreviews(new Map());
+  }, [selectedFileIds]);
 
   // 커넥션 목록 로드
   useEffect(() => {
@@ -266,14 +274,16 @@ export default function FilePrivacyMaskingPage() {
       try {
         const response = await maskFile(selectedIdsArray[i]);
         if (response.success && response.result) {
+          const fileId = selectedIdsArray[i];
+          if (!selectedFileIdsRef.current.has(fileId)) continue;
           setMaskedPreviews((prev) => {
             const newMap = new Map(prev);
-            newMap.set(selectedIdsArray[i], response.result!);
+            newMap.set(fileId, response.result!);
             return newMap;
           });
           setMaskedFileIds((prev) => {
             const newSet = new Set(prev);
-            newSet.add(selectedIdsArray[i]);
+            newSet.add(fileId);
             return newSet;
           });
         } else {
@@ -527,15 +537,14 @@ export default function FilePrivacyMaskingPage() {
       );
     }
 
-    // 영상 (용량 문제로 보류)
+    // 영상 (이슈 상세보기와 동일하게 video 태그로 미리보기)
     if (preview.fileCategory === "VIDEO") {
       return (
-        <>
-          <ImageOff className="size-20 text-[var(--color-text-light-gray)]" />
-          <p className="text-sm text-[var(--color-text-light-gray)]">
-            영상 파일은 용량 문제로 미리보기를 지원하지 않습니다
-          </p>
-        </>
+        <video
+          src={dataUrl}
+          controls
+          className="max-w-full max-h-[350px] object-contain rounded"
+        />
       );
     }
 
@@ -798,20 +807,57 @@ export default function FilePrivacyMaskingPage() {
           <h2 className="shrink-0 text-base font-semibold text-white px-1 pb-2">
             파일 변환
           </h2>
-          <Button
-            colorScheme="main"
-            appearance="solid"
-            onClick={handleConvert}
-            disabled={selectedFileIds.size === 0 || isConverting}
-          >
-            {isConverting ? "변환 중..." : "변환하기"}
-          </Button>
+          {!isConverting && maskedFilesArray.length > 0 ? (
+            <div className="flex items-center gap-3 flex-1 justify-end">
+              <span className="text-sm text-white whitespace-nowrap">
+                암호화 비밀번호:
+              </span>
+              <div className="w-[320px] min-w-[220px]">
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호를 입력하세요 (4~50자)"
+                  colorScheme="main"
+                />
+              </div>
+              <Button
+                colorScheme="main"
+                appearance="outline"
+                onClick={handleCancel}
+                disabled={isSaving}
+              >
+                취소
+              </Button>
+              <Button
+                colorScheme="main"
+                appearance="solid"
+                onClick={handleSave}
+                disabled={
+                  !password ||
+                  password.length < 4 ||
+                  password.length > 50 ||
+                  isSaving
+                }
+              >
+                {isSaving ? "저장 중..." : "저장"}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              colorScheme="main"
+              appearance="solid"
+              onClick={handleConvert}
+              disabled={selectedFileIds.size === 0 || isConverting}
+            >
+              {isConverting ? "변환 중..." : "변환하기"}
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-6">
           {/* 원본 파일 미리보기 */}
           <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden">
-            <div className="p-8 flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
+            <div className="p-[10px] flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
               {currentOriginalFile ? (
                 <>
                   {renderPreview(
@@ -864,7 +910,7 @@ export default function FilePrivacyMaskingPage() {
 
           {/* 마스킹된 파일 미리보기 */}
           <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden">
-            <div className="p-8 flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
+            <div className="p-[10px] flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
               {isConverting ? (
                 <>
                   {showLongLoadingIndicator ? (
@@ -951,43 +997,6 @@ export default function FilePrivacyMaskingPage() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* 암호화 비밀번호 입력 */}
-        <div className="flex items-center gap-3" style={{ minHeight: "48px" }}>
-          {!isConverting && maskedFilesArray.length > 0 ? (
-            <>
-              <span className="text-sm text-white whitespace-nowrap">
-                암호화 비밀번호:
-              </span>
-              <div className="flex-1">
-                <PasswordInput
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호를 입력하세요 (4~50자)"
-                  colorScheme="main"
-                />
-              </div>
-              <Button
-                colorScheme="main"
-                appearance="outline"
-                onClick={handleCancel}
-                disabled={isSaving}
-              >
-                취소
-              </Button>
-              <Button
-                colorScheme="main"
-                appearance="solid"
-                onClick={handleSave}
-                disabled={!password || password.length < 4 || password.length > 50 || isSaving}
-              >
-                {isSaving ? "저장 중..." : "저장"}
-              </Button>
-            </>
-          ) : (
-            <div className="flex-1" />
-          )}
         </div>
       </div>
     </div>
