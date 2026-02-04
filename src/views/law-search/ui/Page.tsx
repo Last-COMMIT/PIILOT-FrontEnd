@@ -27,17 +27,21 @@ export default function LawSearchPage() {
       return;
     }
 
+    if (isSearching) return;
     setIsSearching(true);
     setError(null);
-    const res = await postLawSearch(trimmed);
-    setIsSearching(false);
-
-    if (res.success && res.result) {
-      setSearchResult(res.result);
-      setQueryUsed(trimmed);
-    } else {
-      setSearchResult(null);
-      setError(res.message || "검색에 실패했습니다.");
+    setSelectedReference(null);
+    try {
+      const res = await postLawSearch(trimmed);
+      if (res.success && res.result) {
+        setSearchResult(res.result);
+        setQueryUsed(trimmed);
+      } else {
+        setSearchResult(null);
+        setError(res.message || "검색에 실패했습니다.");
+      }
+    } finally {
+      setIsSearching(false);
     }
   };
 
