@@ -22,7 +22,6 @@ export function Chatbot() {
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -60,7 +59,7 @@ export function Chatbot() {
           },
         ]);
       }
-    } catch (error) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
@@ -92,7 +91,7 @@ export function Chatbot() {
           className={cn(
             "fixed bottom-6 right-6 z-40 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full shadow-lg transition-all opacity-90",
             "bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] text-white",
-            "hover:opacity-100 hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-main)]",
+            "hover:opacity-100 hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-main)]"
           )}
           aria-label="챗봇 열기"
         >
@@ -104,8 +103,10 @@ export function Chatbot() {
       {isOpen && (
         <div
           className={cn(
-            "fixed bottom-5 right-6 z-40 flex h-[700px] w-[380px] flex-col overflow-hidden rounded-xl shadow-2xl",
-            "border border-[var(--color-content-border)] bg-[var(--color-bg-panel)]",
+            "fixed bottom-5 right-6 z-40 flex flex-col overflow-hidden rounded-xl shadow-2xl",
+            // 폭/높이를 화면에 맞게 넓게 잡아 줄바꿈 감소
+            "h-[min(720px,calc(100vh-3rem))] w-[min(640px,calc(100vw-3rem))]",
+            "border border-[var(--color-content-border)] bg-[var(--color-bg-panel)]"
           )}
         >
           {/* 헤더: 그라데이션, 아이콘, 이름·역할, 닫기 */}
@@ -138,13 +139,13 @@ export function Chatbot() {
                 key={i}
                 className={cn(
                   "mb-5 flex flex-col gap-2.5",
-                  msg.role === "user" && "items-end",
+                  msg.role === "user" && "items-end"
                 )}
               >
                 <div
                   className={cn(
-                    "flex gap-2.5",
-                    msg.role === "user" && "flex-row-reverse",
+                    "flex w-full gap-2.5",
+                    msg.role === "user" && "flex-row-reverse"
                   )}
                 >
                   {msg.role === "ai" && (
@@ -154,11 +155,12 @@ export function Chatbot() {
                   )}
                   <div
                     className={cn(
-                      "max-w-[85%] rounded-lg px-4 py-3 text-sm leading-relaxed",
-                      "break-words whitespace-pre-wrap",
+                      "min-w-0 w-fit max-w-[85%] rounded-lg px-4 py-3 text-[13px] sm:text-sm leading-relaxed",
+                      "whitespace-pre-wrap break-words [overflow-wrap:break-word]",
+                      msg.role === "user" && "ml-auto text-left",
                       msg.role === "ai"
                         ? "bg-[var(--color-content-border)]/50 text-[var(--color-text-light-gray)]"
-                        : "bg-[var(--color-main-bg)]/20 text-white",
+                        : "bg-[var(--color-main-bg)]/20 text-white"
                     )}
                   >
                     <div className="space-y-1.5">
@@ -185,9 +187,9 @@ export function Chatbot() {
               placeholder="메시지를 입력하세요...."
               disabled={isLoading}
               className={cn(
-                "min-w-0 flex-1 rounded-lg border border-[var(--color-content-border)] bg-[var(--color-bg-panel)] px-3 py-2.5 text-sm text-white placeholder:text-[var(--color-text-light-gray)]",
+                "min-w-0 flex-1 h-12 rounded-lg border border-[var(--color-content-border)] bg-[var(--color-bg-panel)] px-4 py-3 text-sm text-white placeholder:text-[var(--color-text-light-gray)]",
                 "focus:border-[var(--color-main-border)] focus:outline-none focus:ring-1 focus:ring-[var(--color-main-border)]",
-                isLoading && "opacity-50 cursor-not-allowed",
+                isLoading && "opacity-50 cursor-not-allowed"
               )}
               aria-label="메시지 입력"
             />
@@ -196,10 +198,10 @@ export function Chatbot() {
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
               className={cn(
-                "flex h-10 min-w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-lg px-4",
+                "flex h-12 min-w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-lg px-4",
                 "bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] text-white",
                 "hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-main)]",
-                (isLoading || !input.trim()) && "opacity-50 cursor-not-allowed",
+                (isLoading || !input.trim()) && "opacity-50 cursor-not-allowed"
               )}
               aria-label="전송"
             >
