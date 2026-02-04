@@ -15,7 +15,18 @@ export function AuthLayout({ title, children }: AuthLayoutProps) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[var(--color-bg-main)]">
+    <div
+      className="fixed inset-0 z-50 overflow-hidden"
+      style={{
+        backgroundImage: "url(/images/login_signup_background.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* 어두운 오버레이 - 텍스트 가독성 향상 */}
+      <div className="absolute inset-0 bg-black/75" />
+
       {/* 전체화면 세로 가운데: 텍스트 + 로그인 폼 */}
       <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-6 py-10">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-10">
