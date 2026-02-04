@@ -71,6 +71,12 @@ export default function FilterSection({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onSearch();
+              }
+            }}
             placeholder="파일명 또는 경로 검색..."
             colorScheme="main"
             className="flex-1"

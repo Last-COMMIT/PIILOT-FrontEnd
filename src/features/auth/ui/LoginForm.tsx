@@ -79,7 +79,13 @@ export function LoginForm() {
   }, [router, preview]);
 
   return (
-    <div className="space-y-3">
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+    >
       <div className="space-y-1">
         <label className="text-xs font-semibold text-[var(--color-text-light-gray)]">
           이메일
@@ -142,6 +148,6 @@ export function LoginForm() {
           회원가입
         </Link>
       </div>
-    </div>
+    </form>
   );
 }

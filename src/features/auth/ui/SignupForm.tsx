@@ -117,7 +117,13 @@ export function SignupForm() {
 
   return (
     <>
-      <div className="space-y-3">
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         <div className="space-y-1">
           <label className="text-xs font-semibold text-[var(--color-text-light-gray)]">
             성명
@@ -265,7 +271,7 @@ export function SignupForm() {
             로그인
           </Link>
         </div>
-      </div>
+      </form>
 
       <TermsModal kind={modalKind} onClose={() => setModalKind(null)} />
     </>
