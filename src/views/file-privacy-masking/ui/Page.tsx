@@ -683,6 +683,12 @@ export default function FilePrivacyMaskingPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
                 placeholder="파일명 검색..."
                 colorScheme="main"
               />

@@ -129,7 +129,9 @@ export default function IssueDetailModal({
       ]
     : [];
 
-  const records = detail?.unencryptedRecords ?? [];
+  const records = (detail?.unencryptedRecords ?? []).slice().sort((a, b) =>
+    a.primaryKey.localeCompare(b.primaryKey, undefined, { numeric: true }),
+  );
 
   return (
     <Modal
