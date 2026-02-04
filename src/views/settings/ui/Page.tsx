@@ -6,6 +6,12 @@ import { Button, Table, TableSection, Toggle } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import { useIsAdmin } from "@/views/notice/lib/useIsAdmin";
+import {
+  uploadDocument,
+  getDocuments,
+  type DocumentType,
+  type DocumentListItem,
+} from "@/features/document";
 
 const STORAGE_KEY_NOTIFICATION = "settings_notification_level";
 const STORAGE_KEY_EMAIL = "settings_email_level";
@@ -21,83 +27,48 @@ interface NotificationSettings {
 /** 업로드 시 선택 가능한 파일 유형 (PDF 전제) */
 type FileKind = "db_manual" | "law_internal";
 
+/** FileKind → DocumentType 변환 */
+const FILE_KIND_TO_DOCUMENT_TYPE: Record<FileKind, DocumentType> = {
+  db_manual: "DB_DICTIONARY",
+  law_internal: "REGULATION",
+};
+
 interface UploadedFile extends Record<string, unknown> {
   id: string;
   no: number;
   fileName: string;
   fileType: string;
   uploadedAt: string;
+  documentId?: number;
+  s3Url?: string;
 }
 
 /** 테이블 표시용 (번호는 01, 02 형태 문자열) */
 type UploadedFileRow = Omit<UploadedFile, "no"> & { no: string };
 
-/** 관리자 파일 업로드 테이블용 임시 데이터 */
-const MOCK_UPLOADED_FILES: UploadedFile[] = [
-  {
-    id: "mock-1",
-    no: 0,
-    fileName: "개인정보 보호법.pdf",
-    fileType: "법령",
-    uploadedAt: "01/19 02:00",
-  },
-  {
-    id: "mock-2",
-    no: 0,
-    fileName: "AIVLE SCHOOL 내규",
-    fileType: "내규",
-    uploadedAt: "01/19 01:30",
-  },
-  {
-    id: "mock-3",
-    no: 0,
-    fileName: "개인정보처리방침_내부규정.pdf",
-    fileType: "법령",
-    uploadedAt: "01/19 01:00",
-  },
-  {
-    id: "mock-4",
-    no: 0,
-    fileName: "개인정보_수집·이용_보관_파기_기준.pdf",
-    fileType: "법령",
-    uploadedAt: "01/18 23:00",
-  },
-  {
-    id: "mock-5",
-    no: 0,
-    fileName: "user_list.csv",
-    fileType: "데이터",
-    uploadedAt: "01/18 22:30",
-  },
-  {
-    id: "mock-6",
-    no: 0,
-    fileName: "payment_capture.png",
-    fileType: "DB 사진",
-    uploadedAt: "01/18 22:00",
-  },
-  {
-    id: "mock-7",
-    no: 0,
-    fileName: "KT DB 사전(1)",
-    fileType: "DB 사진",
-    uploadedAt: "01/18 02:00",
-  },
-  {
-    id: "mock-8",
-    no: 0,
-    fileName: "KT DB 사전(2)",
-    fileType: "DB 사진",
-    uploadedAt: "01/18 02:00",
-  },
-  {
-    id: "mock-9",
-    no: 0,
-    fileName: "KT DB 사전(3)",
-    fileType: "DB 사진",
-    uploadedAt: "01/18 02:00",
-  },
-];
+/** 업로드 진행 상태 */
+type UploadStep = "presigned" | "s3" | "save";
+type UploadStepStatus = "loading" | "done" | "error";
+
+interface UploadProgress {
+  isUploading: boolean;
+  currentStep: UploadStep | null;
+  stepStatus: Record<UploadStep, UploadStepStatus | null>;
+  error: string | null;
+}
+
+const INITIAL_UPLOAD_PROGRESS: UploadProgress = {
+  isUploading: false,
+  currentStep: null,
+  stepStatus: { presigned: null, s3: null, save: null },
+  error: null,
+};
+
+const UPLOAD_STEP_LABELS: Record<UploadStep, string> = {
+  presigned: "업로드 준비 중...",
+  s3: "파일 업로드 중...",
+  save: "문서 저장 중...",
+};
 
 const LEVEL_LABELS: Record<
   SeverityLevel,
@@ -219,11 +190,37 @@ export default function SettingsPage() {
   const [emailLevel, setEmailLevel] = useState<NotificationSettings>(() =>
     loadNotificationSettings(STORAGE_KEY_EMAIL, DEFAULT_NOTIFICATION)
   );
-  const [uploadedFiles, setUploadedFiles] =
-    useState<UploadedFile[]>(MOCK_UPLOADED_FILES);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress>(
+    INITIAL_UPLOAD_PROGRESS
+  );
   const [fileKindForUpload, setFileKindForUpload] =
     useState<FileKind>("law_internal");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 관리자인 경우 문서 목록 조회
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchDocuments = async () => {
+      const res = await getDocuments();
+      if (res.success && res.result) {
+        const files: UploadedFile[] = res.result.map(
+          (doc: DocumentListItem) => ({
+            id: `doc-${doc.documentId}`,
+            no: 0,
+            fileName: doc.title,
+            fileType: doc.documentType === "DB_DICTIONARY" ? "DB 사전" : "법령/내규",
+            uploadedAt: formatCreatedAt(doc.createdAt),
+            documentId: doc.documentId,
+          })
+        );
+        setUploadedFiles(files);
+      }
+    };
+
+    fetchDocuments();
+  }, [isAdmin]);
 
   // 알림/이메일 토글: UI만 localStorage에 저장 (백엔드 미연동)
   useEffect(() => {
@@ -242,22 +239,75 @@ export default function SettingsPage() {
     setEmailLevel((prev) => ({ ...prev, [level]: checked }));
   };
 
-  const fileTypeLabel =
-    fileKindForUpload === "db_manual" ? "DB 사전" : "법령/내규";
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
-    const fileList = Array.from(files);
-    const newEntries: UploadedFile[] = fileList.map((file, i) => ({
-      id: `file-${Date.now()}-${i}`,
-      no: 0,
-      fileName: file.name,
-      fileType: fileTypeLabel,
-      uploadedAt: formatUploadDate(new Date()),
-    }));
-    setUploadedFiles((prev) => [...newEntries, ...prev]);
-    e.target.value = "";
+
+    const file = files[0]; // 한 번에 하나씩 처리
+    e.target.value = ""; // input 초기화
+
+    // PDF 검증
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      alert("PDF 파일만 업로드할 수 있습니다.");
+      return;
+    }
+
+    // 파일명에서 확장자 제거하여 제목으로 사용
+    const title = file.name.replace(/\.pdf$/i, "");
+    const documentType = FILE_KIND_TO_DOCUMENT_TYPE[fileKindForUpload];
+
+    // 업로드 진행 상태 초기화
+    setUploadProgress({
+      isUploading: true,
+      currentStep: "presigned",
+      stepStatus: { presigned: "loading", s3: null, save: null },
+      error: null,
+    });
+
+    // 업로드 실행
+    const result = await uploadDocument(
+      file,
+      title,
+      documentType,
+      (step: UploadStep, status: UploadStepStatus) => {
+        setUploadProgress((prev) => ({
+          ...prev,
+          currentStep: step,
+          stepStatus: { ...prev.stepStatus, [step]: status },
+        }));
+      }
+    );
+
+    if (result.success && result.result) {
+      // 성공: 목록에 추가
+      const newEntry: UploadedFile = {
+        id: `doc-${result.result.documentId}`,
+        no: 0,
+        fileName: file.name,
+        fileType: fileKindForUpload === "db_manual" ? "DB 사전" : "법령/내규",
+        uploadedAt: formatUploadDate(new Date()),
+        documentId: result.result.documentId,
+        s3Url: result.result.s3Url,
+      };
+      setUploadedFiles((prev) => [newEntry, ...prev]);
+      setUploadProgress(INITIAL_UPLOAD_PROGRESS);
+
+      // 임베딩 상태 알림
+      if (!result.result.embeddingSuccess) {
+        alert("문서가 저장되었습니다.\nAI 임베딩은 백그라운드에서 처리됩니다.");
+      }
+    } else {
+      // 실패
+      setUploadProgress((prev) => ({
+        ...prev,
+        isUploading: false,
+        error: result.message,
+      }));
+      alert(`업로드 실패: ${result.message}`);
+    }
   };
 
   /** 최신순 정렬, 번호는 01~09 형태(맨 위가 가장 큰 번호) */
@@ -267,11 +317,6 @@ export default function SettingsPage() {
       no: String(uploadedFiles.length - i).padStart(2, "0"),
     }));
   }, [uploadedFiles]);
-
-  const handleSave = () => {
-    // TODO: API 연동 시 저장 로직
-    alert("설정이 저장되었습니다.");
-  };
 
   const fileColumns = useMemo(
     (): TableColumn<UploadedFileRow>[] => [
@@ -399,7 +444,6 @@ export default function SettingsPage() {
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,application/pdf"
-                multiple
                 className="sr-only"
                 onChange={handleFileUpload}
                 aria-label="PDF 파일 선택"
@@ -410,9 +454,17 @@ export default function SettingsPage() {
                 size="sm"
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={uploadProgress.isUploading}
               >
-                파일 업로드 (PDF)
+                {uploadProgress.isUploading && uploadProgress.currentStep
+                  ? UPLOAD_STEP_LABELS[uploadProgress.currentStep]
+                  : "파일 업로드 (PDF)"}
               </Button>
+              {uploadProgress.error && (
+                <span className="text-xs text-[var(--color-coral-text)]">
+                  {uploadProgress.error}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden">
@@ -425,12 +477,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-
-      <div className="flex justify-end shrink-0">
-        <Button colorScheme="main" appearance="solid" onClick={handleSave}>
-          저장
-        </Button>
-      </div>
     </div>
   );
 }
@@ -441,4 +487,13 @@ function formatUploadDate(d: Date): string {
   const h = String(d.getHours()).padStart(2, "0");
   const min = String(d.getMinutes()).padStart(2, "0");
   return `${m}/${day} ${h}:${min}`;
+}
+
+function formatCreatedAt(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    return formatUploadDate(d);
+  } catch {
+    return isoString;
+  }
 }
