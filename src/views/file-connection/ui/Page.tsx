@@ -29,22 +29,28 @@ import type {
   FileConnectionDetailItem,
 } from "@/features/file-connection";
 
-/** UI용 서버 유형 (FTP/SFTP만 API 지원) */
-type FileServerType = "ftp" | "sftp";
+/** UI용 서버 유형 */
+type FileServerType = "ftp" | "sftp" | "webdav";
 
 const FILE_SERVER_TYPE_OPTIONS = [
   { value: "ftp", label: "FTP" },
   { value: "sftp", label: "SFTP" },
+  { value: "webdav", label: "WEBDAV" },
 ];
 
 /** API serverTypeName → UI serverType */
 function serverTypeNameToType(name: string): FileServerType {
-  return name.toUpperCase() === "SFTP" ? "sftp" : "ftp";
+  const upper = name.toUpperCase();
+  if (upper === "SFTP") return "sftp";
+  if (upper === "WEBDAV") return "webdav";
+  return "ftp";
 }
 
-/** UI serverType → API serverTypeId (4: FTP, 5: SFTP) */
+/** UI serverType → API serverTypeId (1: FTP, 2: SFTP, 3: WEBDAV) */
 function serverTypeToId(type: FileServerType): FileServerTypeId {
-  return type === "sftp" ? 5 : 4;
+  if (type === "sftp") return 2;
+  if (type === "webdav") return 3;
+  return 1;
 }
 
 /** API status → UI statusVariant */
