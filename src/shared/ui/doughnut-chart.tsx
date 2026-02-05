@@ -25,7 +25,7 @@ export interface DoughnutChartData {
 
 export interface DoughnutChartProps {
   data: DoughnutChartData;
-  height?: number;
+  height?: number | string;
   className?: string;
   showLegend?: boolean;
 }
@@ -63,8 +63,9 @@ export function DoughnutChart({
     cutout: "62%",
   };
 
+  const style = typeof height === "number" ? { height: `${height}px` } : { height };
   return (
-    <div className={className} style={{ height }}>
+    <div className={className} style={style}>
       <Doughnut data={data} options={options} />
     </div>
   );
