@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { AuthLayout } from "./AuthLayout";
 import { LoginForm } from "./LoginForm";
 import { SignupForm } from "./SignupForm";
@@ -14,7 +15,9 @@ export default function AuthPage({ mode }: AuthPageProps) {
   const isSignup = mode === "signup";
   return (
     <AuthLayout title={isSignup ? "회원가입" : "로그인"}>
-      {isSignup ? <SignupForm /> : <LoginForm />}
+      <Suspense fallback={<div>로딩 중...</div>}>
+        {isSignup ? <SignupForm /> : <LoginForm />}
+      </Suspense>
     </AuthLayout>
   );
 }
