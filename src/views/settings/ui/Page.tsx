@@ -184,12 +184,9 @@ const DEFAULT_NOTIFICATION: NotificationSettings = {
 export default function SettingsPage() {
   const isAdmin = useIsAdmin();
   const [notificationLevel, setNotificationLevel] =
-    useState<NotificationSettings>(() =>
-      loadNotificationSettings(STORAGE_KEY_NOTIFICATION, DEFAULT_NOTIFICATION)
-    );
-  const [emailLevel, setEmailLevel] = useState<NotificationSettings>(() =>
-    loadNotificationSettings(STORAGE_KEY_EMAIL, DEFAULT_NOTIFICATION)
-  );
+    useState<NotificationSettings>(DEFAULT_NOTIFICATION);
+  const [emailLevel, setEmailLevel] =
+    useState<NotificationSettings>(DEFAULT_NOTIFICATION);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>(
     INITIAL_UPLOAD_PROGRESS
@@ -197,6 +194,19 @@ export default function SettingsPage() {
   const [fileKindForUpload, setFileKindForUpload] =
     useState<FileKind>("law_internal");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 클라이언트에서만 localStorage 값으로 동기화 (하이드레이션 불일치 방지)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setNotificationLevel(
+        loadNotificationSettings(STORAGE_KEY_NOTIFICATION, DEFAULT_NOTIFICATION)
+      );
+      setEmailLevel(
+        loadNotificationSettings(STORAGE_KEY_EMAIL, DEFAULT_NOTIFICATION)
+      );
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   // 관리자인 경우 문서 목록 조회
   useEffect(() => {
