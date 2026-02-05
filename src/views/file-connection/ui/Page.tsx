@@ -586,7 +586,7 @@ export default function FileConnectionPage() {
                   highlight: true,
                 },
               ];
-              const isScanning = scanningConnectionId === item.id;
+              const isScanning = item.isScanning || scanningConnectionId === item.id;
               const actions: ConnectionActionItem[] = [
                 {
                   label: "상세보기",

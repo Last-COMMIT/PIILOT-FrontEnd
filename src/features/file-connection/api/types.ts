@@ -49,6 +49,7 @@ export interface FileConnectionListItem {
   totalFiles: number;
   totalFileSize: number;
   createdAt?: string;
+  isScanning: boolean;
 }
 
 /** 상세 조회 응답 (비밀번호 미포함) */

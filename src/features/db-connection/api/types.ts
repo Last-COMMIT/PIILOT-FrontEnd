@@ -54,6 +54,7 @@ export interface DbConnectionListItem {
   dbName: string;
   totalTables: number;
   totalColumns: number;
+  isScanning: boolean;
 }
 
 /** 상세 조회 응답 */
