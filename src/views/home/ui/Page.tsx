@@ -323,7 +323,7 @@ export default function HomePage() {
           style={{ height: CHART_CARD_H }}
         >
           <h3 className="text-sm font-semibold text-white mb-3 shrink-0">
-            DB 서버 암호화 추세
+            DB 서버 이슈 발생 추세
           </h3>
           <div className="flex-1 min-h-0">
             <LineChart data={dbServerData} height={LINE_CHART_H} />
@@ -334,7 +334,7 @@ export default function HomePage() {
           style={{ height: CHART_CARD_H }}
         >
           <h3 className="text-sm font-semibold text-white mb-3 shrink-0">
-            파일 서버 암호화 추세
+            파일 서버 이슈 발생 추세
           </h3>
           <div className="flex-1 min-h-0">
             <LineChart data={fileServerData} height={LINE_CHART_H} />
