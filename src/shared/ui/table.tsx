@@ -113,6 +113,7 @@ function TableInner<T extends Record<string, unknown>>(
               <div
                 className={cn(
                   "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:auto]",
+                  scrollable && "min-w-[600px]",
                 )}
                 style={
                   maxBodyHeight != null && maxBodyHeight !== "100%"

@@ -3,16 +3,19 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Database, FileText, TriangleAlert, Columns } from "lucide-react";
-import { StatCard, IssueCard, LineChart, DoughnutChart, LoadingIndicator } from "@/shared/ui";
+import {
+  StatCard,
+  IssueCard,
+  LineChart,
+  DoughnutChart,
+  LoadingIndicator,
+} from "@/shared/ui";
 import type {
   LineChartData,
   DoughnutChartData,
   IssueCardRiskLevel,
 } from "@/shared/ui";
-import {
-  getDashboardSummary,
-  getDashboardTrends,
-} from "@/features/dashboard";
+import { getDashboardSummary, getDashboardTrends } from "@/features/dashboard";
 import type {
   DashboardSummary,
   DashboardTrends,
@@ -98,7 +101,8 @@ export default function HomePage() {
           } else {
             const msg = summaryRes.message ?? "";
             const isNotReady =
-              summaryRes.httpStatus === 403 || NOT_IMPLEMENTED_PATTERN.test(msg);
+              summaryRes.httpStatus === 403 ||
+              NOT_IMPLEMENTED_PATTERN.test(msg);
             if (isNotReady) {
               summaryNotReady = true;
             } else {
@@ -202,8 +206,13 @@ export default function HomePage() {
     };
   }, [trends]);
 
+  const piiDistributionForChart = useMemo(
+    () => summary?.piiDistribution ?? [],
+    [summary]
+  );
+
   const personalInfoData: DoughnutChartData = useMemo(() => {
-    if (!summary?.piiDistribution || summary.piiDistribution.length === 0) {
+    if (piiDistributionForChart.length === 0) {
       return {
         labels: [],
         datasets: [
@@ -217,7 +226,7 @@ export default function HomePage() {
         ],
       };
     }
-    const dist = summary.piiDistribution;
+    const dist = piiDistributionForChart;
     return {
       labels: dist.map((d) => d.piiTypeName),
       datasets: [
@@ -225,24 +234,25 @@ export default function HomePage() {
           label: "개인정보 유형별 분포",
           data: dist.map((d) => d.count),
           backgroundColor: dist.map(
-            (d) => PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
+            (d) => PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)"
           ),
           borderColor: dist.map(
-            (d) => PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
+            (d) => PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)"
           ),
           borderWidth: 1,
         },
       ],
     };
-  }, [summary]);
+  }, [piiDistributionForChart]);
 
-  const personalInfoLegend = useMemo(() => {
-    if (!summary?.piiDistribution) return [];
-    return summary.piiDistribution.map((d) => ({
-      label: d.piiTypeName,
-      color: PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
-    }));
-  }, [summary]);
+  const personalInfoLegend = useMemo(
+    () =>
+      piiDistributionForChart.map((d) => ({
+        label: d.piiTypeName,
+        color: PII_TYPE_COLORS[d.piiTypeName] ?? "rgb(156, 163, 175)",
+      })),
+    [piiDistributionForChart]
+  );
 
   const dbServerIssues = useMemo(() => {
     return summary?.recentDbIssues?.map(dbIssueToIssueData) ?? [];
@@ -281,12 +291,15 @@ export default function HomePage() {
   const stats = summary?.stats;
 
   return (
-    <div className="min-h-full flex flex-col p-6 gap-5">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 gap-5 flex flex-col">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 shrink-0">
         <StatCard
           title="총 서버 연결"
           value={String(stats?.totalConnections ?? 0)}
-          detail={`DB: ${stats?.dbConnectionCount ?? 0} | 파일: ${stats?.fileConnectionCount ?? 0}`}
+          detail={`DB: ${stats?.dbConnectionCount ?? 0} | 파일: ${
+            stats?.fileConnectionCount ?? 0
+          }`}
           trend="up"
           icon={<Database className="size-5" />}
           colorScheme="mint"
@@ -310,7 +323,9 @@ export default function HomePage() {
         <StatCard
           title="총 이슈 개수"
           value={String(stats?.totalIssueCount ?? 0)}
-          detail={`DB: ${stats?.dbIssueCount ?? 0} | 파일: ${stats?.fileIssueCount ?? 0}`}
+          detail={`DB: ${stats?.dbIssueCount ?? 0} | 파일: ${
+            stats?.fileIssueCount ?? 0
+          }`}
           trend="up"
           icon={<TriangleAlert className="size-5" />}
           colorScheme="coral"
@@ -342,22 +357,25 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 min-h-[320px] overflow-x-hidden overflow-y-visible lg:[grid-template-columns:0.85fr_1.075fr_1.075fr]">
-        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col min-h-0 min-w-0 overflow-hidden">
+      <div className="grid grid-cols-1 gap-5 shrink-0 min-h-[320px] overflow-hidden lg:grid-rows-[1fr] lg:[grid-template-columns:0.85fr_1.075fr_1.075fr] lg:flex-1 lg:min-h-0">
+        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col min-h-[200px] min-w-0 overflow-hidden lg:min-h-0 lg:h-full">
           <h3 className="text-sm font-semibold text-white mb-3 shrink-0">
             개인정보 유형별 분포
           </h3>
-          <div className="flex-1 gap-4 min-h-0 min-w-0 flex flex-col items-center justify-center overflow-hidden">
+          <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-2 overflow-hidden">
             {personalInfoData.labels.length > 0 ? (
               <>
-                <div className="w-full max-w-[240px] mb-4 min-w-0 overflow-hidden">
-                  <DoughnutChart
-                    data={personalInfoData}
-                    height={200}
-                    showLegend={false}
-                  />
+                <div className="flex-1 min-h-[160px] min-w-0 overflow-hidden flex items-center justify-center">
+                  <div className="w-full h-full max-h-[200px] max-w-[240px] min-w-0 mx-auto">
+                    <DoughnutChart
+                      data={personalInfoData}
+                      height="100%"
+                      showLegend={false}
+                      className="w-full h-full min-h-0 min-w-0"
+                    />
+                  </div>
                 </div>
-                <div className="w-full grid grid-cols-3 gap-x-3 gap-y-2 text-sm text-[var(--color-text-muted)] shrink-0">
+                <div className="w-full grid grid-cols-3 gap-x-3 gap-y-2 text-sm text-[var(--color-text-muted)] shrink-0 overflow-hidden">
                   {personalInfoLegend.map((item) => (
                     <div
                       key={item.label}
@@ -381,7 +399,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col h-full min-h-0">
+        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col min-h-[200px] min-w-0 overflow-hidden lg:min-h-0 lg:h-full">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h3 className="text-sm font-semibold text-white">
               DB 서버 개인정보 이슈
@@ -421,7 +439,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col h-full min-h-0">
+        <div className="rounded-xl border border-[var(--color-content-border)] bg-[var(--color-card-bg)] p-3 flex flex-col min-h-[200px] min-w-0 overflow-hidden lg:min-h-0 lg:h-full">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h3 className="text-sm font-semibold text-white">
               파일 서버 개인정보 이슈
@@ -460,6 +478,7 @@ export default function HomePage() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
