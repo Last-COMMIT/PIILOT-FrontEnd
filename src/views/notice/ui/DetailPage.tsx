@@ -110,7 +110,7 @@ export default function NoticeDetailPage({ id }: NoticeDetailPageProps) {
             </div>
           </div>
 
-          <div className="p-6 border-t border-[var(--color-content-border)] flex justify-end gap-2">
+          <div className="p-6 border-t border-[var(--color-content-border)] flex justify-center gap-2">
             <Link href="/notice">
               <Button colorScheme="neutral" appearance="outline">
                 목록

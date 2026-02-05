@@ -957,9 +957,6 @@ export default function FilePrivacyMaskingPage() {
                     size="lg"
                     className="min-h-[80px]"
                   />
-                  <p className="text-xs text-[var(--color-text-light-gray)]/60">
-                    {maskedFileIds.size} / {selectedFileIds.size} 파일 변환 완료
-                  </p>
                 </>
               ) : currentMaskedFileData ? (
                 <>
