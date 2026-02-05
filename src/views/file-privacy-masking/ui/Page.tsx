@@ -1,16 +1,22 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import NextImage from "next/image";
 import {
   FileImage,
   Shield,
   Check,
   ChevronLeft,
   ChevronRight,
-  Image,
   ImageOff,
 } from "lucide-react";
-import { Button, Dropdown, Input, PasswordInput, LoadingIndicator } from "@/shared/ui";
+import {
+  Button,
+  Dropdown,
+  Input,
+  PasswordInput,
+  LoadingIndicator,
+} from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -59,12 +65,15 @@ export default function FilePrivacyMaskingPage() {
   const [connections, setConnections] = useState<FileMaskingConnection[]>([]);
   const [files, setFiles] = useState<FileMaskingFileItem[]>([]);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<number>>(
-    new Set(),
+    new Set()
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
-  const [selectedConnectionId, setSelectedConnectionId] = useState<number | "all">("all");
-  const [selectedFileCategory, setSelectedFileCategory] = useState<string>("all");
+  const [selectedConnectionId, setSelectedConnectionId] = useState<
+    number | "all"
+  >("all");
+  const [selectedFileCategory, setSelectedFileCategory] =
+    useState<string>("all");
   const [selectedRiskLevel, setSelectedRiskLevel] = useState<string>("all");
   const [password, setPassword] = useState("");
   const [currentOriginalIndex, setCurrentOriginalIndex] = useState(0);
@@ -137,15 +146,23 @@ export default function FilePrivacyMaskingPage() {
         const response = await getFileMaskingFiles(params);
         if (response.success && response.result) {
           setFiles(response.result);
+        } else {
+          setFiles([]);
         }
       } catch (error) {
         console.error("파일 목록 로드 실패:", error);
+        setFiles([]);
       } finally {
         setIsLoadingFiles(false);
       }
     };
     loadFiles();
-  }, [selectedConnectionId, selectedFileCategory, selectedRiskLevel, appliedSearchQuery]);
+  }, [
+    selectedConnectionId,
+    selectedFileCategory,
+    selectedRiskLevel,
+    appliedSearchQuery,
+  ]);
 
   // 파일 클릭 시 미리보기 로드
   useEffect(() => {
@@ -211,8 +228,12 @@ export default function FilePrivacyMaskingPage() {
         return file && preview ? { file, preview } : null;
       })
       .filter(
-        (item): item is { file: FileMaskingFileItem; preview: FileMaskingResponse } =>
-          item !== null,
+        (
+          item
+        ): item is {
+          file: FileMaskingFileItem;
+          preview: FileMaskingResponse;
+        } => item !== null
       );
   }, [maskedFileIds, files, maskedPreviews]);
 
@@ -220,7 +241,7 @@ export default function FilePrivacyMaskingPage() {
     setCurrentOriginalIndex((prev) =>
       selectedFilesArray.length === 0
         ? 0
-        : Math.min(prev, selectedFilesArray.length - 1),
+        : Math.min(prev, selectedFilesArray.length - 1)
     );
   }, [selectedFilesArray.length]);
 
@@ -228,7 +249,7 @@ export default function FilePrivacyMaskingPage() {
     setCurrentMaskedIndex((prev) =>
       maskedFilesArray.length === 0
         ? 0
-        : Math.min(prev, maskedFilesArray.length - 1),
+        : Math.min(prev, maskedFilesArray.length - 1)
     );
   }, [maskedFilesArray.length]);
 
@@ -323,7 +344,10 @@ export default function FilePrivacyMaskingPage() {
           successCount++;
         } else {
           failCount++;
-          console.error(`저장 실패 (fileId: ${selectedIdsArray[i]}):`, response.message);
+          console.error(
+            `저장 실패 (fileId: ${selectedIdsArray[i]}):`,
+            response.message
+          );
         }
       } catch (error) {
         failCount++;
@@ -334,7 +358,11 @@ export default function FilePrivacyMaskingPage() {
     setIsSaving(false);
 
     if (successCount > 0) {
-      alert(`${successCount}개 파일이 저장되었습니다.${failCount > 0 ? ` (${failCount}개 실패)` : ""}`);
+      alert(
+        `${successCount}개 파일이 저장되었습니다.${
+          failCount > 0 ? ` (${failCount}개 실패)` : ""
+        }`
+      );
       // 상태 초기화 및 목록 새로고침
       handleCancel();
       const params: {
@@ -418,12 +446,10 @@ export default function FilePrivacyMaskingPage() {
   const renderPreview = (
     preview: FilePreviewResponse | FileMaskingResponse | null,
     isLoading: boolean,
-    isMasked: boolean,
+    isMasked: boolean
   ) => {
     if (isLoading) {
-      return (
-        <LoadingIndicator message="로딩 중..." size="md" />
-      );
+      return <LoadingIndicator message="로딩 중..." size="md" />;
     }
 
     if (!preview) {
@@ -467,37 +493,42 @@ export default function FilePrivacyMaskingPage() {
 
     const dataUrl = `data:${preview.mimeType};base64,${content}`;
 
-    // 이미지
+    // 이미지 - 컨테이너 안에 안 깨지게, 비율 유지
     if (preview.fileCategory === "PHOTO") {
       return (
-        <img
-          src={dataUrl}
-          alt=""
-          className="max-w-full max-h-[350px] object-contain rounded"
-        />
+        <div className="relative w-full h-full min-h-0 min-w-0 overflow-hidden rounded">
+          <NextImage
+            src={dataUrl}
+            alt=""
+            fill
+            className="object-contain rounded"
+            unoptimized
+          />
+        </div>
       );
     }
 
-    // 문서 (PDF는 iframe, 이미지는 img)
+    // 문서 (PDF는 iframe, 이미지는 img) - 컨테이너 안에 안 깨지게
     if (preview.fileCategory === "DOCUMENT") {
       if (preview.mimeType === "application/pdf") {
         return (
-          <iframe
-            src={dataUrl}
-            className="w-full h-[350px] rounded"
-            title=""
-          />
+          <iframe src={dataUrl} className="w-full h-full min-h-0 min-w-0 rounded border-0" title="" />
         );
       } else if (
         preview.mimeType.startsWith("image/") ||
-        preview.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        preview.mimeType ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       ) {
         return (
-          <img
-            src={dataUrl}
-            alt=""
-            className="max-w-full max-h-[350px] object-contain rounded"
-          />
+          <div className="relative w-full h-full min-h-0 min-w-0 overflow-hidden rounded">
+            <NextImage
+              src={dataUrl}
+              alt=""
+              fill
+              className="object-contain rounded"
+              unoptimized
+            />
+          </div>
         );
       } else {
         return (
@@ -530,13 +561,13 @@ export default function FilePrivacyMaskingPage() {
       );
     }
 
-    // 영상 (이슈 상세보기와 동일하게 video 태그로 미리보기)
+    // 영상 - 컨테이너 안에 안 깨지게, 비율 유지
     if (preview.fileCategory === "VIDEO") {
       return (
         <video
           src={dataUrl}
           controls
-          className="max-w-full max-h-[350px] object-contain rounded"
+          className="w-full h-full min-h-0 min-w-0 object-contain rounded"
         />
       );
     }
@@ -544,9 +575,7 @@ export default function FilePrivacyMaskingPage() {
     return (
       <>
         <FileImage className="size-16 text-[var(--color-text-light-gray)]" />
-        <p className="text-sm text-[var(--color-text-light-gray)]">
-          미리보기
-        </p>
+        <p className="text-sm text-[var(--color-text-light-gray)]">미리보기</p>
       </>
     );
   };
@@ -570,7 +599,7 @@ export default function FilePrivacyMaskingPage() {
                 "border-2 shrink-0",
                 isSelected
                   ? "bg-[var(--color-main-bg)] border-[var(--color-main-bg)] shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
-                  : "bg-[var(--color-sidebar-bg)] border-[var(--color-content-border)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]",
+                  : "bg-[var(--color-sidebar-bg)] border-[var(--color-content-border)] hover:border-[var(--color-main-bg)] hover:shadow-[0_0_0_2px_rgba(34,211,238,0.1)]"
               )}
             >
               {isSelected && (
@@ -611,7 +640,7 @@ export default function FilePrivacyMaskingPage() {
       width: "0.7fr",
       align: "left",
       render: (value) => (
-        <span>{FILE_CATEGORY_MAP[value as FileCategory] || value}</span>
+        <span>{FILE_CATEGORY_MAP[value as FileCategory] ?? String(value)}</span>
       ),
     },
     {
@@ -625,7 +654,7 @@ export default function FilePrivacyMaskingPage() {
           <span
             className={cn(
               "rounded px-1.5 py-0.5 text-[10px] font-medium",
-              getRiskLevelColor(riskLevel),
+              getRiskLevelColor(riskLevel)
             )}
           >
             {RISK_LEVEL_MAP[riskLevel] || riskLevel}
@@ -637,12 +666,12 @@ export default function FilePrivacyMaskingPage() {
 
   return (
     <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
-      {/* 파일 선택 섹션 */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      {/* 파일 선택 섹션 - 콘텐츠 높이만 사용, 빈 여백 없음 */}
+      <div className="flex flex-col shrink-0">
         <h2 className="shrink-0 text-base font-semibold text-white px-1 pb-2">
           파일 선택
         </h2>
-        <div className="flex flex-col gap-4 flex-1 min-h-0">
+        <div className="flex flex-col gap-4">
           {/* 필터 및 검색 */}
           <div className="flex items-center gap-3 flex-wrap shrink-0">
             <div className="flex-[0.8] min-w-[180px]">
@@ -655,7 +684,7 @@ export default function FilePrivacyMaskingPage() {
                 }
                 onChange={(value) => {
                   setSelectedConnectionId(
-                    value === "all" ? "all" : Number(value),
+                    value === "all" ? "all" : Number(value)
                   );
                 }}
                 colorScheme="main"
@@ -711,12 +740,13 @@ export default function FilePrivacyMaskingPage() {
             </Button>
           </div>
 
-          {/* 파일 목록 테이블 */}
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden flex flex-col text-sm h-full">
-              <div className="flex-1 overflow-y-auto [scrollbar-gutter:auto] min-h-0">
+          
+          <div className="min-h-[160px] max-h-[210px] overflow-hidden flex flex-col w-full">
+            <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden flex flex-col text-sm h-full min-h-[160px] max-h-[210px]">
+              <div className="flex-1 overflow-auto [scrollbar-gutter:auto] min-h-0 min-w-0">
+                <div className="min-w-[700px]">
                 {/* 테이블 헤더 - sticky */}
-                <div className="shrink-0 sticky top-0 z-10">
+                <div className="shrink-0 sticky top-0 z-10 bg-[var(--color-sidebar-bg)]">
                   <div
                     className="grid border-b border-[var(--color-text-light-gray)] bg-[var(--color-sidebar-bg)] font-medium text-white shrink-0 text-sm"
                     style={{
@@ -731,8 +761,8 @@ export default function FilePrivacyMaskingPage() {
                           col.align === "center"
                             ? "text-center justify-center"
                             : col.align === "right"
-                              ? "text-right justify-end"
-                              : "text-left justify-start",
+                            ? "text-right justify-end"
+                            : "text-left justify-start"
                         )}
                       >
                         <span className="w-full min-w-0 truncate">
@@ -761,8 +791,9 @@ export default function FilePrivacyMaskingPage() {
                         className={cn(
                           "grid border-b border-[var(--color-content-border)] last:border-b-0 text-[var(--color-text-muted)] text-xs",
                           isSelected && "bg-[var(--color-main-bg)]/15",
-                          isSelectedForPreview && "ring-2 ring-[var(--color-main-bg)]",
-                          "hover:bg-[var(--color-main-bg)]/10 transition-colors cursor-pointer",
+                          isSelectedForPreview &&
+                            "ring-2 ring-[var(--color-main-bg)]",
+                          "hover:bg-[var(--color-main-bg)]/10 transition-colors cursor-pointer"
                         )}
                         style={{
                           gridTemplateColumns: "40px 1fr 1fr 2fr 0.7fr 0.7fr",
@@ -772,8 +803,13 @@ export default function FilePrivacyMaskingPage() {
                       >
                         {fileColumns.map((col) => {
                           const content =
-                            col.render?.(file[col.id as keyof FileMaskingFileItem], file) ??
-                            (file[col.id as keyof FileMaskingFileItem] as React.ReactNode);
+                            col.render?.(
+                              file[col.id as keyof FileMaskingFileItem],
+                              file
+                            ) ??
+                            (file[
+                              col.id as keyof FileMaskingFileItem
+                            ] as React.ReactNode);
                           return (
                             <div
                               key={col.id}
@@ -782,8 +818,8 @@ export default function FilePrivacyMaskingPage() {
                                 col.align === "center"
                                   ? "text-center justify-center"
                                   : col.align === "right"
-                                    ? "text-right justify-end"
-                                    : "text-left justify-start",
+                                  ? "text-right justify-end"
+                                  : "text-left justify-start"
                               )}
                             >
                               <div className="w-full min-w-0">{content}</div>
@@ -794,15 +830,16 @@ export default function FilePrivacyMaskingPage() {
                     );
                   })
                 )}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 파일 변환 섹션 */}
-      <div className="flex flex-col gap-4 shrink-0">
-        <div className="flex items-center justify-between">
+      {/* 파일 변환 섹션 - 하단 여백까지 채움 (다른 페이지와 동일) */}
+      <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between shrink-0">
           <h2 className="shrink-0 text-base font-semibold text-white px-1 pb-2">
             파일 변환
           </h2>
@@ -853,18 +890,15 @@ export default function FilePrivacyMaskingPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 grid-rows-[1fr] gap-6 flex-1 min-h-0 overflow-hidden">
           {/* 원본 파일 미리보기 */}
-          <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden">
-            <div className="p-[10px] flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
-              {currentOriginalFile ? (
-                <>
-                  {renderPreview(
-                    originalPreview,
-                    isLoadingPreview,
-                    false,
-                  )}
-                  {selectedFilesArray.length > 1 && (
+          <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden flex flex-col min-h-0">
+            <div className="p-[10px] flex flex-col flex-1 min-h-0 gap-4 relative">
+              <div className="flex-1 min-h-0 min-w-0 w-full flex items-center justify-center overflow-hidden">
+                {currentOriginalFile ? (
+                  <>
+                    {renderPreview(originalPreview, isLoadingPreview, false)}
+                    {selectedFilesArray.length > 1 && (
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
                       <button
                         type="button"
@@ -872,7 +906,7 @@ export default function FilePrivacyMaskingPage() {
                           setCurrentOriginalIndex(
                             (prev) =>
                               (prev - 1 + selectedFilesArray.length) %
-                              selectedFilesArray.length,
+                              selectedFilesArray.length
                           )
                         }
                         className="p-1.5 rounded-md bg-[var(--color-content-border)]/50 hover:bg-[var(--color-content-border)] text-white transition-colors"
@@ -886,7 +920,7 @@ export default function FilePrivacyMaskingPage() {
                         type="button"
                         onClick={() =>
                           setCurrentOriginalIndex(
-                            (prev) => (prev + 1) % selectedFilesArray.length,
+                            (prev) => (prev + 1) % selectedFilesArray.length
                           )
                         }
                         className="p-1.5 rounded-md bg-[var(--color-content-border)]/50 hover:bg-[var(--color-content-border)] text-white transition-colors"
@@ -895,21 +929,23 @@ export default function FilePrivacyMaskingPage() {
                       </button>
                     </div>
                   )}
-                </>
-              ) : (
-                <>
-                  <FileImage className="size-16 text-[var(--color-text-light-gray)]" />
-                  <p className="text-sm text-[var(--color-text-light-gray)]">
-                    상단에서 파일을 선택하세요
-                  </p>
-                </>
-              )}
+                  </>
+                ) : (
+                  <>
+                    <FileImage className="size-16 text-[var(--color-text-light-gray)]" />
+                    <p className="text-sm text-[var(--color-text-light-gray)]">
+                      상단에서 파일을 선택하세요
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {/* 마스킹된 파일 미리보기 */}
-          <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden">
-            <div className="p-[10px] flex flex-col items-center justify-center min-h-[400px] gap-4 relative">
+          <div className="rounded-lg border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] overflow-hidden flex flex-col min-h-0">
+            <div className="p-[10px] flex flex-col flex-1 min-h-0 gap-4 relative">
+              <div className="flex-1 min-h-0 min-w-0 w-full flex items-center justify-center overflow-hidden">
               {isConverting ? (
                 <>
                   <LoadingIndicator
@@ -936,7 +972,7 @@ export default function FilePrivacyMaskingPage() {
                           setCurrentMaskedIndex(
                             (prev) =>
                               (prev - 1 + maskedFilesArray.length) %
-                              maskedFilesArray.length,
+                              maskedFilesArray.length
                           )
                         }
                         className="p-1.5 rounded-md bg-[var(--color-content-border)]/50 hover:bg-[var(--color-content-border)] text-white transition-colors"
@@ -950,7 +986,7 @@ export default function FilePrivacyMaskingPage() {
                         type="button"
                         onClick={() =>
                           setCurrentMaskedIndex(
-                            (prev) => (prev + 1) % maskedFilesArray.length,
+                            (prev) => (prev + 1) % maskedFilesArray.length
                           )
                         }
                         className="p-1.5 rounded-md bg-[var(--color-content-border)]/50 hover:bg-[var(--color-content-border)] text-white transition-colors"
@@ -968,6 +1004,7 @@ export default function FilePrivacyMaskingPage() {
                   </p>
                 </>
               )}
+              </div>
             </div>
           </div>
         </div>
