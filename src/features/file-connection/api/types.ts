@@ -1,5 +1,5 @@
-/** 서버 유형 ID: 4 FTP, 5 SFTP */
-export type FileServerTypeId = 4 | 5;
+/** 서버 유형 ID: 1 FTP, 2 SFTP, 3 WEBDAV */
+export type FileServerTypeId = 1 | 2 | 3;
 
 export type FileConnectionStatus = "CONNECTED" | "DISCONNECTED";
 
@@ -49,6 +49,7 @@ export interface FileConnectionListItem {
   totalFiles: number;
   totalFileSize: number;
   createdAt?: string;
+  isScanning: boolean;
 }
 
 /** 상세 조회 응답 (비밀번호 미포함) */
