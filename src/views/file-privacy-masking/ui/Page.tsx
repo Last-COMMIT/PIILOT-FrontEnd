@@ -472,7 +472,7 @@ export default function FilePrivacyMaskingPage() {
       return (
         <img
           src={dataUrl}
-          alt={preview.fileName}
+          alt=""
           className="max-w-full max-h-[350px] object-contain rounded"
         />
       );
@@ -485,7 +485,7 @@ export default function FilePrivacyMaskingPage() {
           <iframe
             src={dataUrl}
             className="w-full h-[350px] rounded"
-            title={preview.fileName}
+            title=""
           />
         );
       } else if (
@@ -495,7 +495,7 @@ export default function FilePrivacyMaskingPage() {
         return (
           <img
             src={dataUrl}
-            alt={preview.fileName}
+            alt=""
             className="max-w-full max-h-[350px] object-contain rounded"
           />
         );
@@ -504,11 +504,11 @@ export default function FilePrivacyMaskingPage() {
           <>
             <FileImage className="size-16 text-[var(--color-text-light-gray)]" />
             <p className="text-sm text-[var(--color-text-light-gray)]">
-              {preview.fileName}
+              미리보기
             </p>
             <a
               href={dataUrl}
-              download={preview.fileName}
+              download
               className="text-xs text-[var(--color-main-text)] underline"
             >
               다운로드
@@ -545,7 +545,7 @@ export default function FilePrivacyMaskingPage() {
       <>
         <FileImage className="size-16 text-[var(--color-text-light-gray)]" />
         <p className="text-sm text-[var(--color-text-light-gray)]">
-          {preview.fileName}
+          미리보기
         </p>
       </>
     );
