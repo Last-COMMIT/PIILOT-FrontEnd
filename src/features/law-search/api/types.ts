@@ -3,6 +3,7 @@
 /** 참고 문서 한 건 */
 export interface LawSearchReference {
   documentTitle: string;
+  lawName: string;
   content: string;
   article: string;
   page: string;
@@ -14,6 +15,8 @@ export interface LawSearchResult {
   answer: string;
   references: LawSearchReference[];
   totalReferences: number;
+  /** 백엔드 추가 데이터 (예: S3 URL 등) */
+  law_data?: unknown;
 }
 
 /** API 공통 응답 래퍼 */
