@@ -76,6 +76,7 @@ export default function NoticeCreatePage() {
               className="w-full flex-1 min-h-[200px] resize-none rounded-xl border border-[var(--color-text-light-gray)] bg-[var(--color-bg-main)]/20 p-5 text-base leading-relaxed text-white placeholder:text-[var(--color-text-light-gray)] focus:outline-none focus:border-[var(--color-main-bg)] focus:ring-0"
             />
           </div>
+
           <div className="pt-6 px-6 pb-6 flex justify-center gap-2">
             <Button
               colorScheme="neutral"

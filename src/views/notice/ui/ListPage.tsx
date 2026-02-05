@@ -10,7 +10,7 @@ import type { NoticeListItem } from "@/features/notice";
 import { formatNoticeDateShort } from "../lib/format";
 
 /** API 목록 한 건 → 테이블 행 (authorName → author) */
-interface NoticeRow {
+interface NoticeRow extends Record<string, unknown> {
   id: number;
   title: string;
   author: string;
@@ -30,7 +30,7 @@ export default function NoticeListPage() {
   const router = useRouter();
   const isAdmin = useIsAdmin();
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | undefined>(
-    undefined,
+    undefined
   );
   const [data, setData] = useState<NoticeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,8 @@ export default function NoticeListPage() {
   }, []);
 
   useEffect(() => {
-    loadList();
+    const id = setTimeout(() => loadList(), 0);
+    return () => clearTimeout(id);
   }, [loadList]);
 
   const columns = useMemo(
@@ -79,7 +80,7 @@ export default function NoticeListPage() {
         ),
       },
     ],
-    [],
+    []
   );
 
   if (loading) {
@@ -108,16 +109,15 @@ export default function NoticeListPage() {
 
   return (
     <div className="h-full min-h-0 overflow-hidden flex flex-col p-6 gap-5">
-      <div className="flex items-center justify-end gap-2 shrink-0">
-        {isAdmin && (
+      {isAdmin && (
+        <div className="flex items-center justify-end gap-2 shrink-0">
           <Link href="/notice/new">
             <Button colorScheme="main" appearance="solid">
               글 작성
             </Button>
           </Link>
-        )}
-      </div>
-
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-hidden">
         <Table<NoticeRow>
           columns={columns}
