@@ -27,6 +27,10 @@ export interface TableProps<T = Record<string, unknown>> extends Omit<
   onRowClick?: (row: T, index: number) => void;
   rowSelectionEnabled?: boolean;
   onBodyScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  /** 스크롤 영역 하단에 렌더링할 요소 (sentinel 등) */
+  footer?: React.ReactNode;
+  /** 내부 스크롤 컨테이너의 ref */
+  scrollRef?: React.Ref<HTMLDivElement>;
 }
 
 const alignClasses: Record<TableColumnAlign, string> = {
@@ -59,6 +63,8 @@ function TableInner<T extends Record<string, unknown>>(
     onRowClick,
     rowSelectionEnabled = true,
     onBodyScroll,
+    footer,
+    scrollRef,
     className,
     style,
     ...props
@@ -111,6 +117,7 @@ function TableInner<T extends Record<string, unknown>>(
               {/* Header + Body share the same scroll container to avoid column misalignment
                   caused by vertical scrollbar width. */}
               <div
+                ref={scrollRef}
                 className={cn(
                   "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:auto]",
                   scrollable && "min-w-[600px]",
@@ -199,6 +206,7 @@ function TableInner<T extends Record<string, unknown>>(
                     );
                   })}
                 </div>
+                {footer}
               </div>
             </div>
           </div>
