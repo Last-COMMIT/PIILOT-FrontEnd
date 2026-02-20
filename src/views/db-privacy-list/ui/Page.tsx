@@ -239,8 +239,9 @@ export default function DbPrivacyListPage() {
   hasNextRef.current = hasNext;
   pageRef.current = page;
 
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const handleLoadMoreRef = useRef<() => void>(() => {});
 
   const handleLoadMore = useCallback(() => {
     if (loadingRef.current || !hasNextRef.current) return;
@@ -254,15 +255,20 @@ export default function DbPrivacyListPage() {
     });
   }, [loadColumns]);
 
-  // IntersectionObserver: sentinel이 보이면 다음 페이지 로드
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+  handleLoadMoreRef.current = handleLoadMore;
+
+  // callback ref: sentinel DOM이 마운트되는 순간 observer 연결
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    if (!node) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          handleLoadMore();
+          handleLoadMoreRef.current();
         }
       },
       {
@@ -271,9 +277,9 @@ export default function DbPrivacyListPage() {
         threshold: 0,
       },
     );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [handleLoadMore]);
+    observer.observe(node);
+    observerRef.current = observer;
+  }, []);
 
   const totalItems = stats?.totalItems ?? 0;
   const highRiskItems = stats?.highRiskItems ?? 0;
