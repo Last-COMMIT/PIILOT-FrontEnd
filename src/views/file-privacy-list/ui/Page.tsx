@@ -228,8 +228,6 @@ export default function FilePrivacyListPage() {
   pageRef.current = page;
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const handleLoadMoreRef = useRef<() => void>(() => {});
 
   const handleLoadMore = useCallback(() => {
     if (loadingRef.current || !hasNextRef.current) return;
@@ -240,34 +238,41 @@ export default function FilePrivacyListPage() {
     loadFiles(nextPage, true).finally(() => {
       setLoading(false);
       loadingRef.current = false;
+      requestAnimationFrame(() => {
+        const el = scrollContainerRef.current;
+        if (el && el.scrollHeight <= el.clientHeight + 10 && hasNextRef.current) {
+          loadingRef.current = false;
+          setTimeout(() => {
+            if (!loadingRef.current && hasNextRef.current) {
+              handleLoadMore();
+            }
+          }, 100);
+        }
+      });
     });
   }, [loadFiles]);
 
-  handleLoadMoreRef.current = handleLoadMore;
+  const handleBodyScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+        handleLoadMore();
+      }
+    },
+    [handleLoadMore],
+  );
 
-  // callback ref: sentinel DOM이 마운트되는 순간 observer 연결
-  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-      observerRef.current = null;
-    }
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          handleLoadMoreRef.current();
-        }
-      },
-      {
-        root: scrollContainerRef.current,
-        rootMargin: "200px",
-        threshold: 0,
-      },
-    );
-    observer.observe(node);
-    observerRef.current = observer;
-  }, []);
+  useEffect(() => {
+    if (loading || !hasNext || rows.length === 0) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const timer = setTimeout(() => {
+      if (el.scrollHeight <= el.clientHeight + 10 && hasNextRef.current && !loadingRef.current) {
+        handleLoadMore();
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [rows.length, loading, hasNext]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalFiles = stats?.totalFiles ?? 0;
   const highRiskItems = stats?.highRiskCount ?? 0;
@@ -390,15 +395,13 @@ export default function FilePrivacyListPage() {
                 maxBodyHeight="100%"
                 className="h-full"
                 scrollRef={scrollContainerRef}
+                onBodyScroll={handleBodyScroll}
                 footer={
-                  <>
-                    <div ref={sentinelRef} style={{ height: 1 }} />
-                    {loading && rows.length > 0 && (
-                      <div className="py-3 flex justify-center">
-                        <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
-                      </div>
-                    )}
-                  </>
+                  loading && rows.length > 0 ? (
+                    <div className="py-3 flex justify-center">
+                      <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
+                    </div>
+                  ) : null
                 }
               />
             </>
