@@ -223,29 +223,45 @@ export default function FilePrivacyListPage() {
 
   const loadingRef = useRef(false);
   const hasNextRef = useRef(false);
+  const pageRef = useRef(page);
   hasNextRef.current = hasNext;
+  pageRef.current = page;
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const handleLoadMore = useCallback(() => {
     if (loadingRef.current || !hasNextRef.current) return;
     loadingRef.current = true;
-    const nextPage = page + 1;
+    const nextPage = pageRef.current + 1;
     setPage(nextPage);
     setLoading(true);
     loadFiles(nextPage, true).finally(() => {
       setLoading(false);
       loadingRef.current = false;
     });
-  }, [page, loadFiles]);
+  }, [loadFiles]);
 
-  const handleBodyScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-        handleLoadMore();
-      }
-    },
-    [handleLoadMore],
-  );
+  // IntersectionObserver: sentinel이 보이면 다음 페이지 로드
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: "200px",
+        threshold: 0,
+      },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleLoadMore]);
 
   const totalFiles = stats?.totalFiles ?? 0;
   const highRiskItems = stats?.highRiskCount ?? 0;
@@ -367,13 +383,18 @@ export default function FilePrivacyListPage() {
                 scrollable
                 maxBodyHeight="100%"
                 className="h-full"
-                onBodyScroll={handleBodyScroll}
+                scrollRef={scrollContainerRef}
+                footer={
+                  <>
+                    <div ref={sentinelRef} style={{ height: 1 }} />
+                    {loading && rows.length > 0 && (
+                      <div className="py-3 flex justify-center">
+                        <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
+                      </div>
+                    )}
+                  </>
+                }
               />
-              {loading && rows.length > 0 && (
-                <div className="shrink-0 py-3 flex justify-center">
-                  <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
-                </div>
-              )}
             </>
           )}
         </div>

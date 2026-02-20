@@ -235,29 +235,45 @@ export default function DbPrivacyListPage() {
 
   const loadingRef = useRef(false);
   const hasNextRef = useRef(false);
+  const pageRef = useRef(page);
   hasNextRef.current = hasNext;
+  pageRef.current = page;
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const handleLoadMore = useCallback(() => {
     if (loadingRef.current || !hasNextRef.current) return;
     loadingRef.current = true;
-    const nextPage = page + 1;
+    const nextPage = pageRef.current + 1;
     setPage(nextPage);
     setLoading(true);
     loadColumns(nextPage, true).finally(() => {
       setLoading(false);
       loadingRef.current = false;
     });
-  }, [page, loadColumns]);
+  }, [loadColumns]);
 
-  const handleBodyScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-        handleLoadMore();
-      }
-    },
-    [handleLoadMore],
-  );
+  // IntersectionObserver: sentinel이 보이면 다음 페이지 로드
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: "200px",
+        threshold: 0,
+      },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleLoadMore]);
 
   const totalItems = stats?.totalItems ?? 0;
   const highRiskItems = stats?.highRiskItems ?? 0;
@@ -397,13 +413,19 @@ export default function DbPrivacyListPage() {
                 scrollable
                 maxBodyHeight="100%"
                 className="h-full"
-                onBodyScroll={handleBodyScroll}
+                scrollRef={scrollContainerRef}
+                footer={
+                  <>
+                    {/* sentinel: IntersectionObserver가 감지 */}
+                    <div ref={sentinelRef} style={{ height: 1 }} />
+                    {loading && rows.length > 0 && (
+                      <div className="py-3 flex justify-center">
+                        <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
+                      </div>
+                    )}
+                  </>
+                }
               />
-              {loading && rows.length > 0 && (
-                <div className="shrink-0 py-3 flex justify-center">
-                  <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
-                </div>
-              )}
             </>
           )}
         </div>
