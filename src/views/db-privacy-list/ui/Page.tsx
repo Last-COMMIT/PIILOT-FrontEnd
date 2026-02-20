@@ -93,6 +93,14 @@ export default function DbPrivacyListPage() {
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
 
+  // --- refs for infinite scroll ---
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
+  const hasNextRef = useRef(false);
+  const pageRef = useRef(0);
+  hasNextRef.current = hasNext;
+  pageRef.current = page;
+
   const connectionOptions = [
     { value: "all", label: "모든 커넥션" },
     ...connections.map((c) => ({
@@ -162,22 +170,22 @@ export default function DbPrivacyListPage() {
         const list = Array.isArray(contentArray)
           ? contentArray.map(columnToRow)
           : [];
-        if (list.length > 0) {
-          if (append) setRows((prev) => [...prev, ...list]);
-          else setRows(list);
-          setStats(res.result.stats ?? null);
-          const slice = rawContent as { hasNext?: boolean } | undefined;
-          setHasNext(Boolean(slice?.hasNext));
-        } else {
-          if (!append) setRows([]);
-          setStats(res.result.stats ?? null);
-          const slice = rawContent as { hasNext?: boolean } | undefined;
-          setHasNext(Boolean(slice?.hasNext));
-        }
+
+        if (append) setRows((prev) => [...prev, ...list]);
+        else setRows(list);
+
+        setStats(res.result.stats ?? null);
+        const slice = rawContent as { hasNext?: boolean } | undefined;
+        const nextHasNext = Boolean(slice?.hasNext);
+        setHasNext(nextHasNext);
+        hasNextRef.current = nextHasNext;
+
+        console.log("[DB-PII] page:", pageNum, "items:", list.length, "hasNext:", nextHasNext);
       } else {
         if (!append) setRows([]);
         setStats(null);
         setHasNext(false);
+        hasNextRef.current = false;
       }
     },
     [
@@ -211,6 +219,8 @@ export default function DbPrivacyListPage() {
 
   useEffect(() => {
     const id = setTimeout(() => {
+      setPage(0);
+      pageRef.current = 0;
       setLoading(true);
       loadColumns(0, false).finally(() => setLoading(false));
     }, 0);
@@ -233,62 +243,42 @@ export default function DbPrivacyListPage() {
     setPage(0);
   };
 
-  const loadingRef = useRef(false);
-  const hasNextRef = useRef(false);
-  const pageRef = useRef(page);
-  hasNextRef.current = hasNext;
-  pageRef.current = page;
-
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-
-  const handleLoadMore = useCallback(() => {
-    if (loadingRef.current || !hasNextRef.current) return;
-    loadingRef.current = true;
-    const nextPage = pageRef.current + 1;
-    setPage(nextPage);
-    setLoading(true);
-    loadColumns(nextPage, true).finally(() => {
-      setLoading(false);
-      loadingRef.current = false;
-      // 로드 후 스크롤 없으면 추가 로드
-      requestAnimationFrame(() => {
-        const el = scrollContainerRef.current;
-        if (el && el.scrollHeight <= el.clientHeight + 10 && hasNextRef.current) {
-          loadingRef.current = false;
-          // 다음 틱에서 다시 로드
-          setTimeout(() => {
-            if (!loadingRef.current && hasNextRef.current) {
-              handleLoadMore();
-            }
-          }, 100);
-        }
-      });
-    });
-  }, [loadColumns]);
-
-  // 스크롤 이벤트: 하단 200px 이내 도달 시 추가 로드
-  const handleBodyScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
-        handleLoadMore();
-      }
-    },
-    [handleLoadMore],
-  );
-
-  // 최초 데이터 로드 후 스크롤 없으면 추가 로드
+  // --- 무한스크롤: 300ms 간격으로 스크롤 위치 체크 ---
   useEffect(() => {
-    if (loading || !hasNext || rows.length === 0) return;
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const timer = setTimeout(() => {
-      if (el.scrollHeight <= el.clientHeight + 10 && hasNextRef.current && !loadingRef.current) {
-        handleLoadMore();
+    const getScrollEl = (): HTMLElement | null => {
+      // Table 내부의 role="table" div가 실제 스크롤 컨테이너
+      return tableWrapperRef.current?.querySelector<HTMLElement>('[role="table"]') ?? null;
+    };
+
+    const doLoadMore = () => {
+      if (loadingRef.current || !hasNextRef.current) return;
+      loadingRef.current = true;
+      const nextPage = pageRef.current + 1;
+      setPage(nextPage);
+      pageRef.current = nextPage;
+      setLoading(true);
+      loadColumns(nextPage, true).finally(() => {
+        setLoading(false);
+        loadingRef.current = false;
+      });
+    };
+
+    const interval = setInterval(() => {
+      if (loadingRef.current || !hasNextRef.current) return;
+      const el = getScrollEl();
+      if (!el) return;
+
+      // 콘텐츠가 스크롤 영역을 채우지 못하면(스크롤바 없음) → 바로 추가 로드
+      // 스크롤이 하단 200px 이내면 → 추가 로드
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      if (nearBottom) {
+        console.log("[DB-PII] nearBottom detected, loading more...");
+        doLoadMore();
       }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [rows.length, loading, hasNext]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [loadColumns]);
 
   const totalItems = stats?.totalItems ?? 0;
   const highRiskItems = stats?.highRiskItems ?? 0;
@@ -406,7 +396,7 @@ export default function DbPrivacyListPage() {
           onRiskLevelChange={setSelectedRiskLevel}
         />
 
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden" ref={tableWrapperRef}>
           {loading && rows.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-white">
               <LoadingIndicator size="lg" aria-label="로딩 중" />
@@ -428,16 +418,12 @@ export default function DbPrivacyListPage() {
                 scrollable
                 maxBodyHeight="100%"
                 className="h-full"
-                scrollRef={scrollContainerRef}
-                onBodyScroll={handleBodyScroll}
-                footer={
-                  loading && rows.length > 0 ? (
-                    <div className="py-3 flex justify-center">
-                      <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
-                    </div>
-                  ) : null
-                }
               />
+              {loading && rows.length > 0 && (
+                <div className="shrink-0 py-2 flex justify-center">
+                  <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
+                </div>
+              )}
             </>
           )}
         </div>

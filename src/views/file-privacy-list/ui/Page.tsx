@@ -88,6 +88,14 @@ export default function FilePrivacyListPage() {
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
 
+  // --- refs for infinite scroll ---
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
+  const hasNextRef = useRef(false);
+  const pageRef = useRef(0);
+  hasNextRef.current = hasNext;
+  pageRef.current = page;
+
   const connectionOptions = [
     { value: "all", label: "모든 커넥션" },
     ...connections.map((c) => ({
@@ -151,6 +159,7 @@ export default function FilePrivacyListPage() {
         setError(res.message ?? "파일 목록을 불러오지 못했습니다.");
         if (!append) setRows([]);
         setHasNext(false);
+        hasNextRef.current = false;
         return false;
       }
       setError(null);
@@ -179,12 +188,17 @@ export default function FilePrivacyListPage() {
           rawContent && !Array.isArray(rawContent)
             ? (rawContent as { hasNext?: boolean })
             : null;
-        setHasNext(Boolean(slice?.hasNext));
+        const nextHasNext = Boolean(slice?.hasNext);
+        setHasNext(nextHasNext);
+        hasNextRef.current = nextHasNext;
+
+        console.log("[FILE-PII] page:", pageNum, "items:", list.length, "hasNext:", nextHasNext);
         return true;
       }
       if (!append) setRows([]);
       setStats(null);
       setHasNext(false);
+      hasNextRef.current = false;
       return false;
     },
     [selectedConnection, selectedFileType, selectedMaskingStatus, selectedRiskLevel, appliedSearchQuery],
@@ -200,6 +214,7 @@ export default function FilePrivacyListPage() {
   useEffect(() => {
     const id = setTimeout(() => {
       setPage(0);
+      pageRef.current = 0;
       setLoading(true);
       loadFiles(0, false).finally(() => setLoading(false));
     }, 0);
@@ -221,58 +236,39 @@ export default function FilePrivacyListPage() {
     setPage(0);
   };
 
-  const loadingRef = useRef(false);
-  const hasNextRef = useRef(false);
-  const pageRef = useRef(page);
-  hasNextRef.current = hasNext;
-  pageRef.current = page;
-
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-
-  const handleLoadMore = useCallback(() => {
-    if (loadingRef.current || !hasNextRef.current) return;
-    loadingRef.current = true;
-    const nextPage = pageRef.current + 1;
-    setPage(nextPage);
-    setLoading(true);
-    loadFiles(nextPage, true).finally(() => {
-      setLoading(false);
-      loadingRef.current = false;
-      requestAnimationFrame(() => {
-        const el = scrollContainerRef.current;
-        if (el && el.scrollHeight <= el.clientHeight + 10 && hasNextRef.current) {
-          loadingRef.current = false;
-          setTimeout(() => {
-            if (!loadingRef.current && hasNextRef.current) {
-              handleLoadMore();
-            }
-          }, 100);
-        }
-      });
-    });
-  }, [loadFiles]);
-
-  const handleBodyScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
-        handleLoadMore();
-      }
-    },
-    [handleLoadMore],
-  );
-
+  // --- 무한스크롤: 300ms 간격으로 스크롤 위치 체크 ---
   useEffect(() => {
-    if (loading || !hasNext || rows.length === 0) return;
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const timer = setTimeout(() => {
-      if (el.scrollHeight <= el.clientHeight + 10 && hasNextRef.current && !loadingRef.current) {
-        handleLoadMore();
+    const getScrollEl = (): HTMLElement | null => {
+      return tableWrapperRef.current?.querySelector<HTMLElement>('[role="table"]') ?? null;
+    };
+
+    const doLoadMore = () => {
+      if (loadingRef.current || !hasNextRef.current) return;
+      loadingRef.current = true;
+      const nextPage = pageRef.current + 1;
+      setPage(nextPage);
+      pageRef.current = nextPage;
+      setLoading(true);
+      loadFiles(nextPage, true).finally(() => {
+        setLoading(false);
+        loadingRef.current = false;
+      });
+    };
+
+    const interval = setInterval(() => {
+      if (loadingRef.current || !hasNextRef.current) return;
+      const el = getScrollEl();
+      if (!el) return;
+
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      if (nearBottom) {
+        console.log("[FILE-PII] nearBottom detected, loading more...");
+        doLoadMore();
       }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [rows.length, loading, hasNext]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [loadFiles]);
 
   const totalFiles = stats?.totalFiles ?? 0;
   const highRiskItems = stats?.highRiskCount ?? 0;
@@ -373,7 +369,7 @@ export default function FilePrivacyListPage() {
           onRiskLevelChange={setSelectedRiskLevel}
         />
 
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden" ref={tableWrapperRef}>
           {loading && rows.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-white">
               <LoadingIndicator size="lg" aria-label="로딩 중" />
@@ -394,16 +390,12 @@ export default function FilePrivacyListPage() {
                 scrollable
                 maxBodyHeight="100%"
                 className="h-full"
-                scrollRef={scrollContainerRef}
-                onBodyScroll={handleBodyScroll}
-                footer={
-                  loading && rows.length > 0 ? (
-                    <div className="py-3 flex justify-center">
-                      <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
-                    </div>
-                  ) : null
-                }
               />
+              {loading && rows.length > 0 && (
+                <div className="shrink-0 py-2 flex justify-center">
+                  <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -411,4 +403,3 @@ export default function FilePrivacyListPage() {
     </div>
   );
 }
-
