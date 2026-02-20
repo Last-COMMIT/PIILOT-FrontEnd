@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Table as TableIcon, AlertTriangle, Lock, Database } from "lucide-react";
 import {
   StatCard,
@@ -233,12 +233,31 @@ export default function DbPrivacyListPage() {
     setPage(0);
   };
 
-  const handleLoadMore = () => {
+  const loadingRef = useRef(false);
+  const hasNextRef = useRef(false);
+  hasNextRef.current = hasNext;
+
+  const handleLoadMore = useCallback(() => {
+    if (loadingRef.current || !hasNextRef.current) return;
+    loadingRef.current = true;
     const nextPage = page + 1;
     setPage(nextPage);
     setLoading(true);
-    loadColumns(nextPage, true).finally(() => setLoading(false));
-  };
+    loadColumns(nextPage, true).finally(() => {
+      setLoading(false);
+      loadingRef.current = false;
+    });
+  }, [page, loadColumns]);
+
+  const handleBodyScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        handleLoadMore();
+      }
+    },
+    [handleLoadMore],
+  );
 
   const totalItems = stats?.totalItems ?? 0;
   const highRiskItems = stats?.highRiskItems ?? 0;
@@ -378,17 +397,11 @@ export default function DbPrivacyListPage() {
                 scrollable
                 maxBodyHeight="100%"
                 className="h-full"
+                onBodyScroll={handleBodyScroll}
               />
-              {hasNext && (
-                <div className="shrink-0 pt-3 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    className="px-4 py-2 rounded-md border border-[var(--color-content-border)] bg-[var(--color-sidebar-bg)] text-white text-sm hover:opacity-90 disabled:opacity-50"
-                  >
-                    {loading ? "로딩 중..." : "더보기"}
-                  </button>
+              {loading && rows.length > 0 && (
+                <div className="shrink-0 py-3 flex justify-center">
+                  <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
                 </div>
               )}
             </>

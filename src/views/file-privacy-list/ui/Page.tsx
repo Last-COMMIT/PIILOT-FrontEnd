@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Database, AlertTriangle, Lock, FileText } from "lucide-react";
-import { StatCard, Table, Button, LoadingIndicator } from "@/shared/ui";
+import { StatCard, Table, LoadingIndicator } from "@/shared/ui";
 import type { TableColumn } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import FilterSection from "./FilterSection";
@@ -221,15 +221,31 @@ export default function FilePrivacyListPage() {
     setPage(0);
   };
 
-  const handleLoadMore = () => {
+  const loadingRef = useRef(false);
+  const hasNextRef = useRef(false);
+  hasNextRef.current = hasNext;
+
+  const handleLoadMore = useCallback(() => {
+    if (loadingRef.current || !hasNextRef.current) return;
+    loadingRef.current = true;
     const nextPage = page + 1;
+    setPage(nextPage);
     setLoading(true);
-    loadFiles(nextPage, true)
-      .then((ok) => {
-        if (ok) setPage(nextPage);
-      })
-      .finally(() => setLoading(false));
-  };
+    loadFiles(nextPage, true).finally(() => {
+      setLoading(false);
+      loadingRef.current = false;
+    });
+  }, [page, loadFiles]);
+
+  const handleBodyScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        handleLoadMore();
+      }
+    },
+    [handleLoadMore],
+  );
 
   const totalFiles = stats?.totalFiles ?? 0;
   const highRiskItems = stats?.highRiskCount ?? 0;
@@ -351,18 +367,11 @@ export default function FilePrivacyListPage() {
                 scrollable
                 maxBodyHeight="100%"
                 className="h-full"
+                onBodyScroll={handleBodyScroll}
               />
-              {hasNext && (
-                <div className="shrink-0 pt-3 flex justify-center pb-2">
-                  <Button
-                    type="button"
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    colorScheme="main"
-                    appearance="outline"
-                  >
-                    {loading ? "로딩 중..." : "더보기"}
-                  </Button>
+              {loading && rows.length > 0 && (
+                <div className="shrink-0 py-3 flex justify-center">
+                  <LoadingIndicator size="sm" aria-label="추가 로딩 중" />
                 </div>
               )}
             </>
